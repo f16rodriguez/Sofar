@@ -7,9 +7,12 @@
 // keep its whole attention on one kind of reading. The transcript is sent as a
 // cached block, so the shared input is paid for once across the three.
 //
-// Every item's span is verified against the transcript before it is allowed
-// through — a claim whose span does not contain it is not traceable, and
-// untraceable memory is what the source-citation rule exists to prevent.
+// Provenance: the model returns the words an item came from, and this file
+// finds those words in the transcript to compute the offsets. Asking the model
+// for character offsets directly does not work — it is asking it to count
+// characters, and the first run dropped 19 of 60 items on offsets pointing at
+// the wrong text. A quote either appears in the transcript or it does not,
+// which makes the check absolute and the offsets correct by construction.
 
 import { z } from "zod";
 import { complete, loadPrompt, type ModelTier } from "../llm";
@@ -24,6 +27,7 @@ import {
   UnsaidSchema,
   InferredSchema,
   type Extraction,
+  type Located,
 } from "./schema";
 
 export interface ExtractOptions {
@@ -31,6 +35,8 @@ export interface ExtractOptions {
   /** Opus for onboarding (SPEC §5.2). */
   model?: ModelTier;
   memoryContext?: string;
+  /** Called as each pass lands, so a long run is not a silent one. */
+  onProgress?: (pass: string) => void;
 }
 
 export interface SpanIssue {
@@ -44,48 +50,57 @@ export interface ExtractResult {
   dropped: SpanIssue[];
 }
 
-interface Spanned {
-  span_start: number;
-  span_end: number;
+interface Sourced {
+  source_quote: string;
 }
 
-function normalize(s: string): string {
-  return s
-    .toLowerCase()
-    .replace(/[‘’]/g, "'")
-    .replace(/[“”]/g, '"')
-    .replace(/[^a-z0-9' ]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+/** Whitespace-collapsed transcript, and the original index of each character. */
+function buildIndex(transcript: string): { collapsed: string; map: number[] } {
+  let collapsed = "";
+  const map: number[] = [];
+  let inSpace = false;
+  for (let i = 0; i < transcript.length; i++) {
+    if (/\s/.test(transcript[i])) {
+      if (!inSpace && collapsed.length > 0) {
+        collapsed += " ";
+        map.push(i);
+        inSpace = true;
+      }
+      continue;
+    }
+    inSpace = false;
+    collapsed += transcript[i];
+    map.push(i);
+  }
+  map.push(transcript.length);
+  return { collapsed, map };
 }
 
 /**
- * A span is valid if it is in range and the text it covers overlaps the claim.
- * Shared significant words rather than exact containment: the model paraphrases
- * lightly, and demanding verbatim identity would drop good rows. Demanding
- * nothing would let a row cite an unrelated part of the transcript.
+ * Exact match first; failing that, match on collapsed whitespace. The model
+ * copies words reliably and line breaks unreliably, and a quote differing only
+ * in wrapping is the same quote. Anything still unfound is text that is not in
+ * the transcript — precisely what this exists to catch.
  */
-function spanSupports(
+function locate(
   transcript: string,
-  item: Spanned,
-  claim: string,
-): string | null {
-  const { span_start: start, span_end: end } = item;
-  if (end <= start) return "empty span";
-  if (start < 0 || end > transcript.length) return "span out of range";
+  index: { collapsed: string; map: number[] },
+  quote: string,
+): { span_start: number; span_end: number } | null {
+  if (quote.trim().length === 0) return null;
 
-  const source = normalize(transcript.slice(start, end));
-  if (source.length === 0) return "span covers no text";
+  const exact = transcript.indexOf(quote);
+  if (exact >= 0) return { span_start: exact, span_end: exact + quote.length };
 
-  const claimWords = normalize(claim)
-    .split(" ")
-    .filter((w) => w.length > 3);
-  if (claimWords.length === 0) return null;
+  const needle = quote.replace(/\s+/g, " ").trim();
+  if (needle.length === 0) return null;
+  const at = index.collapsed.indexOf(needle);
+  if (at < 0) return null;
 
-  const hits = claimWords.filter((w) => source.includes(w)).length;
-  return hits / claimWords.length >= 0.34
-    ? null
-    : `span does not contain the claim (${hits}/${claimWords.length} words)`;
+  return {
+    span_start: index.map[at],
+    span_end: index.map[Math.min(at + needle.length, index.map.length - 1)],
+  };
 }
 
 // --- the three passes -------------------------------------------------------
@@ -128,9 +143,11 @@ export async function extract(opts: ExtractOptions): Promise<ExtractResult> {
     "--- TRANSCRIPT END ---",
   ].join("\n");
 
-  const spanNote =
-    "Character offsets are counted from the first character after the " +
-    "TRANSCRIPT START line.";
+  const quoteNote =
+    "For every item, source_quote must be the exact words from the transcript " +
+    "it came from — copied, not paraphrased, not summarised. Quote the " +
+    "smallest stretch of text that contains the claim. A quote that does not " +
+    "appear verbatim in the transcript causes the item to be discarded.";
 
   const call = <T>(schema: z.ZodType<T>, note: string) =>
     complete({
@@ -139,43 +156,57 @@ export async function extract(opts: ExtractOptions): Promise<ExtractResult> {
       system: loadPrompt("extraction"),
       cachedInput,
       memoryContext: opts.memoryContext,
-      prompt: `${note}\n\n${spanNote}`,
+      prompt: `${note}\n\n${quoteNote}`,
       schema,
-      maxTokens: 64000,
+      // Extraction is careful reading, not reasoning: it locates what was said
+      // and copies it out. High effort spends the whole budget deliberating.
+      effort: "medium",
+      maxTokens: 32000,
     });
 
   // Sequential, not parallel: the first call writes the shared transcript into
   // the prompt cache and the next two read it.
   const peoplePlaces = await call(PeoplePlacesSchema, PASS_NOTES.peoplePlaces);
+  opts.onProgress?.("people and places");
   const happenings = await call(HappeningsSchema, PASS_NOTES.happenings);
+  opts.onProgress?.("events, stances and costs");
   const residue = await call(ResidueSchema, PASS_NOTES.residue);
+  opts.onProgress?.("threads, voice and inferred");
 
+  const index = buildIndex(opts.transcript);
   const dropped: SpanIssue[] = [];
-  const keep = <T extends Spanned>(
+
+  const place = <T extends Sourced>(
     items: T[],
     kind: string,
-    claimOf: (item: T) => string,
-  ): T[] =>
-    items.filter((item) => {
-      const problem = spanSupports(opts.transcript, item, claimOf(item));
-      if (problem) {
-        dropped.push({ kind, label: claimOf(item).slice(0, 60), reason: problem });
-        return false;
+    labelOf: (item: T) => string,
+  ): Located<T>[] => {
+    const kept: Located<T>[] = [];
+    for (const item of items) {
+      const span = locate(opts.transcript, index, item.source_quote);
+      if (!span) {
+        dropped.push({
+          kind,
+          label: labelOf(item).slice(0, 60),
+          reason: "quote not found in transcript",
+        });
+        continue;
       }
-      return true;
-    });
+      kept.push({ ...item, ...span });
+    }
+    return kept;
+  };
 
   const extraction: Extraction = {
-    people: keep(peoplePlaces.people, "person", (p) => p.label),
-    places: keep(peoplePlaces.places, "place", (p) => p.label),
-    events: keep(happenings.events, "event", (e) => e.what),
-    stances: keep(happenings.stances, "stance", (s) => s.statement),
-    costs: keep(happenings.costs, "cost", (c) => c.what_it_cost),
-    open_threads: keep(residue.open_threads, "thread", (t) => t.label),
+    people: place(peoplePlaces.people, "person", (p) => p.label),
+    places: place(peoplePlaces.places, "place", (p) => p.label),
+    events: place(happenings.events, "event", (e) => e.what),
+    stances: place(happenings.stances, "stance", (s) => s.statement),
+    costs: place(happenings.costs, "cost", (c) => c.what_it_cost),
+    open_threads: place(residue.open_threads, "thread", (t) => t.label),
     voice: residue.voice,
-    unsaid: keep(residue.unsaid, "unsaid", (u) => u.text),
-    // memory_inferred never reaches prose, so a loose span costs nothing.
-    inferred: residue.inferred,
+    unsaid: place(residue.unsaid, "unsaid", (u) => u.text),
+    inferred: place(residue.inferred, "inferred", (i) => i.content),
   };
 
   return { extraction, dropped };

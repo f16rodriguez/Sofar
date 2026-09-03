@@ -88,6 +88,13 @@ export interface CompleteOptions<T> {
   /** Zod schema for JSON output; omit for plain text. */
   schema?: z.ZodType<T>;
   maxTokens?: number;
+  /**
+   * How hard the model works. Thinking is on by default on Opus-class models
+   * and its tokens come out of maxTokens, so this is the difference between a
+   * structured read finishing in a minute and burning a 64k budget on
+   * deliberation. Default high; drop to medium for mechanical extraction.
+   */
+  effort?: "low" | "medium" | "high" | "xhigh" | "max";
   /** Override the routed tier (e.g. extraction → opus during onboarding). */
   model?: ModelTier;
   /**
@@ -148,7 +155,10 @@ export async function complete<T>(opts: CompleteOptions<T>): Promise<T | string>
         max_tokens: maxTokens,
         ...(system.length > 0 ? { system } : {}),
         messages,
-        output_config: { format: zodOutputFormat(opts.schema) },
+        output_config: {
+          format: zodOutputFormat(opts.schema),
+          ...(opts.effort ? { effort: opts.effort } : {}),
+        },
       });
       const response = await stream.finalMessage();
       if (response.parsed_output == null) {
@@ -169,6 +179,7 @@ export async function complete<T>(opts: CompleteOptions<T>): Promise<T | string>
       model,
       max_tokens: maxTokens,
       ...(system.length > 0 ? { system } : {}),
+      ...(opts.effort ? { output_config: { effort: opts.effort } } : {}),
       messages,
     });
     const response = await stream.finalMessage();

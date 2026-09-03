@@ -12,14 +12,16 @@ detail that "must" be true — stop. That item belongs in `inferred`, or nowhere
 A memory layer with fifty accurate rows beats one with two hundred plausible
 ones, because everything downstream is written as fact.
 
-## Spans
+## Provenance
 
-Every item carries `span_start` and `span_end`: character offsets into the
-transcript text exactly as given to you, such that
-`transcript.slice(span_start, span_end)` returns the words the item came from.
+Every item carries `source_quote`: the exact words from the transcript it came
+from, **copied character for character**. Not paraphrased, not tidied, not
+summarised. Quote the smallest stretch of text that contains the claim.
 
-Quote the smallest span that contains the claim. Get the offsets right — they
-are checked, and an item whose span does not contain its claim is dropped.
+The quote is searched for in the transcript. If it is not there verbatim, the
+item is discarded — so copying carefully is the difference between an
+observation surviving and vanishing. Do not reconstruct a quote from memory of
+what you read; copy it.
 
 ## What to extract
 

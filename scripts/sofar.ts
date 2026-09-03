@@ -118,7 +118,11 @@ async function run() {
 
   // --- extraction (Opus for onboarding, SPEC §5.2) ------------------------
   console.log("extracting…");
-  const { extraction, dropped } = await extract({ transcript, model: "opus" });
+  const { extraction, dropped } = await extract({
+    transcript,
+    model: "opus",
+    onProgress: (pass) => console.log(`  ✓ ${pass}`),
+  });
   const counts = Object.entries({
     people: extraction.people.length,
     places: extraction.places.length,
