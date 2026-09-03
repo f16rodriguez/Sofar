@@ -135,3 +135,34 @@ the follow-up to ask right then, not a question for next week.
 **Open:** the angles pass is the seed of the spine proposal (SPEC §5.8);
 whether they are one mechanism at different scales is worth deciding before
 M3.
+
+## D4 — Depth over breadth in the first sessions (founder, 2026-09-03)
+
+"The first few sessions should focus on something. Go deep to learn more.
+Even if in the long run it ends up being a blip of the whole book during a
+rewrite. But we have to start somewhere."
+
+**The evidence:** the scripted onboarding spends twenty minutes across five
+blocks. Run on the founder it produced 780 honest words in three thin
+chapters. The same twenty minutes on one angle — the villa trip — would have
+produced one chapter with a scene, something said, and a turn.
+
+**The principle:** one real chapter beats three summaries. The book revises
+itself by design (canon is proposed, never silently changed), so a first
+chapter that later becomes a blip inside a larger arc has done its job — which
+was to make the person want the next one.
+
+**What it changes:**
+
+- The onboarding shape becomes: foundations → a short breadth pass → the
+  editor finds the angle → go deep on it until it is writable. The scripted
+  Blocks 1–4 are the breadth pass; they should be shorter, and they stop when
+  an angle appears.
+- The editor's `ask` is the interviewer's next question, now — not next
+  week's daily question. Same mechanism, different time horizon. The M2 state
+  machine chases the strongest angle instead of advancing to the next block.
+- The landing-page promise ("the first three chapters") is a founder decision
+  to revisit: one deep chapter by tomorrow may be the truer offer.
+
+**Owner:** interview design is founder-owned. This records the principle; the
+script change is theirs.
