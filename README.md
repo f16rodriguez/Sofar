@@ -22,7 +22,12 @@ structured memory from transcripts and writes a book that revises itself.
 ## Provisioned infrastructure
 
 - **Supabase project**: `Sofar` (`onfxavpzvdazocvandeh`, us-east-1) —
-  `https://onfxavpzvdazocvandeh.supabase.co`. Migrations 0001–0004 applied;
+  `https://onfxavpzvdazocvandeh.supabase.co`. Lives in its own **Sofar**
+  organization, separate from any other business, on the **Free** plan.
+  **Upgrade that org to Pro before the first real trial user** — the Free
+  plan has no daily backups and sleeps after inactivity, which is fine for
+  an empty dev database and not fine for people's books.
+  Migrations 0001–0004 applied;
   security advisors clean; two-user RLS test passed against the live DB
   (cross-user reads return 0 rows, forged inserts rejected by policy).
   Interview seed bank (Q1–Q12) loaded. The daily-question seed bank (SPEC
