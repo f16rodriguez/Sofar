@@ -139,6 +139,7 @@ export function validate(
 async function checkEntailment(
   draft: ChapterDraft,
   sources: Map<string, string>,
+  foundations: Foundations,
 ): Promise<ValidationIssue[]> {
   const paragraphs = paragraphsOf(draft.body_md);
   const blocks = paragraphs.map((text, i) => {
@@ -157,7 +158,14 @@ async function checkEntailment(
   const verdict = await complete({
     task: "entailment",
     system: loadPrompt("entailment"),
-    prompt: blocks.join("\n\n---\n\n"),
+    prompt: [
+      "FOUNDATIONS — available to every paragraph as a source",
+      JSON.stringify(foundations),
+      "",
+      "---",
+      "",
+      blocks.join("\n\n---\n\n"),
+    ].join("\n"),
     schema: EntailmentSchema,
     effort: "medium",
     maxTokens: 6000,
@@ -227,8 +235,9 @@ export async function writeChapter(
       rejected.length > 0
         ? [
             "",
-            "YOUR PREVIOUS ATTEMPT WAS REJECTED:",
-            ...rejected[rejected.length - 1].map((i) => `- ${i.rule}: ${i.detail}`),
+            `REJECTED ${rejected.length} TIME(S). Every claim below was cut for saying`,
+            "more than its sources. Do not replace them with new ones of the same kind:",
+            ...[...new Set(rejected.flat().map((i) => `- ${i.rule}: ${i.detail}`))],
             "",
             "Fix these. Cite a real row id for every paragraph; never name a",
             "person whose row forbids it; and say nothing a cited row does not",
@@ -247,7 +256,7 @@ export async function writeChapter(
 
     let issues = validate(draft, allowedIds, opts.people);
     if (issues.length === 0) {
-      issues = await checkEntailment(draft, sources);
+      issues = await checkEntailment(draft, sources, opts.foundations);
     }
     if (issues.length === 0) {
       return {

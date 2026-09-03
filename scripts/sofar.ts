@@ -327,5 +327,6 @@ if (command !== "run") {
 
 run().catch((err) => {
   console.error(`sofar: ${err instanceof Error ? err.message : err}`);
+  console.error(`RUN COST (failed): ${usage.summary()}`);
   process.exit(1);
 });

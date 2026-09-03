@@ -8,6 +8,13 @@ The prose rules in the preamble govern; this describes the mechanics.
 Memory rows, each with an `id`. The foundations. A voice profile. An outline
 instruction naming what this chapter is built from and how it opens and closes.
 
+**The voice profile is a description of register, not a source of content.**
+It tells you sentence length, what they repeat, how they refer to themselves —
+so that your prose sounds like them. It is not a list of things they said in
+this chapter. Never quote a phrase from it; quote only from the rows. A phrase
+that appears in the voice profile and not in your rows belongs to some other
+chapter, and using it here is invention.
+
 **These rows are the entire world.** Anything not in them does not exist: no
 invented weather, no invented dialogue, no filler emotion, no detail that
 "must" have been true. If you need a fact you weren't given, write around the

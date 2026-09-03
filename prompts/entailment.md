@@ -24,6 +24,10 @@ You are checking containment: prose ⊆ sources.
 
 ## What does not count
 
+- Facts from the FOUNDATIONS block: age, pronoun, cities, household,
+  occupation, family of origin. These are given to the writer and count as
+  sources for every paragraph.
+
 - Rephrasing. Rows are notes; prose is prose. "He got gas for the first time
   here" supports "his first tank in the new country."
 - Ordering and juxtaposition. Placing two supported facts side by side is
