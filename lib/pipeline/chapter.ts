@@ -14,9 +14,9 @@ import { complete, loadPrompt, MODELS, type ModelTier } from "../llm";
 import {
   ChapterSchema,
   EntailmentSchema,
-  SufficiencySchema,
+  AnglesSchema,
   type ChapterDraft,
-  type Sufficiency,
+  type Angle,
 } from "./schema";
 
 export interface Foundations {
@@ -48,35 +48,33 @@ export interface PersonRow {
 }
 
 /**
- * The editor's call, before writing: is there a chapter in these rows, what is
- * it about, and which rows serve it? The writer only ever sees the kept rows —
- * selection is enforced by what it receives, not requested of it.
+ * The editor reads the whole memory layer and finds angles — intersections of
+ * facts that mean more together. Each is writable now or names what is
+ * missing and the question that would get it. Selection is by angle, not by
+ * interview block: an angle pulls from across the record, which is what makes
+ * a chapter intertwine instead of list.
  */
-export async function assess(opts: {
-  outline: string;
+export async function findAngles(opts: {
   rows: MemoryRow[];
   people: PersonRow[];
   foundations: Foundations;
-}): Promise<Sufficiency> {
+}): Promise<Angle[]> {
   const verdict = await complete({
-    task: "sufficiency",
-    system: loadPrompt("sufficiency"),
+    task: "angles",
+    system: loadPrompt("angles"),
     prompt: [
-      `OUTLINE\n${opts.outline}`,
-      "",
       `FOUNDATIONS\n${JSON.stringify(opts.foundations)}`,
       "",
       `PEOPLE\n${describePeople(opts.people)}`,
       "",
-      `ROWS\n${opts.rows.map((r) => `- [${r.id}] (${r.kind}) ${r.text}`).join("\n")}`,
+      `ROWS — the whole record\n${opts.rows.map((r) => `- [${r.id}] (${r.kind}) ${r.text}`).join("\n")}`,
     ].join("\n"),
-    schema: SufficiencySchema,
+    schema: AnglesSchema,
     effort: "high",
-    maxTokens: 6000,
+    maxTokens: 12000,
   });
-  // Only ids that exist; the editor cannot keep a row it was not shown.
   const known = new Set(opts.rows.map((r) => r.id));
-  return { ...verdict, keep: verdict.keep.filter((id) => known.has(id)) };
+  return verdict.angles.map((a) => ({ ...a, rows: a.rows.filter((id) => known.has(id)) }));
 }
 
 export interface WriteChapterOptions {

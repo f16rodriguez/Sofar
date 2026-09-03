@@ -98,3 +98,40 @@ one.
 **Open:** whether a not-enough verdict should remove a chapter written by an
 earlier run (currently it leaves it, and says so). And the tone of "what we
 need" when it reaches a user — it must read as an invitation, not a grade.
+
+## D3 — Connect the dots; selection by angle, not by block (founder, 2026-09-03)
+
+On draft two: "too chronological and Wikipedia-like. Just stating facts.
+Nothing intertwining." And the mechanism, by example: the schools are listed,
+the friends were met in fifth grade in 2005 — so one of those schools is where
+the friendship started, and one of those friends is now the colleague he told
+first about leaving. That is an angle. And the fact the angle needs and does
+not have — which school, what that year was like — is the next question.
+
+**The principle:** an angle is where two or more facts mean more together than
+apart. Finding angles is the editorial act. Each one is either writable now or
+names what is missing and the question that would get it. The chapter and the
+follow-up come from the same act of noticing.
+
+**What was wrong:** draft one gave every row to every chapter and got one
+chapter three times. Draft two fixed that by walling each chapter into its own
+interview block — which guarantees nothing intertwines, and produced lists.
+Both were selection by the wrong principle.
+
+**Implementation:** one editor pass (`prompts/angles.md`, Sonnet, high effort)
+over the whole memory layer, returning angles with the rows each draws on
+across the record, a slot assignment for the three first-session chapters,
+`writable`, `missing`, and `ask` — one question in the interview's register.
+The writer receives the angle's line as "this chapter is about" and only its
+rows. Unwritable angles are stored in `memory_threads` with their question,
+for the daily generator (SPEC §5.6). The chapter prompt now asks for
+intertwining explicitly; chronology is a default, not a structure.
+
+**The villas chapter, specifically:** the founder's own read is that it had
+the best chance and "not enough was asked about that." Correct, and the same
+mechanism serves the interviewer (M2): an angle that surfaces mid-interview is
+the follow-up to ask right then, not a question for next week.
+
+**Open:** the angles pass is the seed of the spine proposal (SPEC §5.8);
+whether they are one mechanism at different scales is worth deciding before
+M3.

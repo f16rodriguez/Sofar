@@ -132,12 +132,16 @@ export const EntailmentSchema = z.object({
   ),
 });
 
-// Sufficiency: is there a chapter here, and what is it about? Decided before
-// anything is written. The writer receives only the rows the editor kept.
-export const SufficiencySchema = z.object({
-  enough: z.boolean(),
-  story: z.string().nullable(),
-  keep: z.array(z.string()),
+// Angles: the editor reads the whole record and finds where facts intersect.
+// Each is either writable now (a chapter) or names what is missing and the one
+// question that would get it (SPEC §5.6 feeds on exactly this).
+export const AngleSchema = z.object({
+  line: z.string(),
+  rows: z.array(z.string()),
+  slot: z.enum(["prologue", "decision", "certainty"]).nullable(),
+  writable: z.boolean(),
   missing: z.array(z.object({ what: z.string(), why: z.string() })),
+  ask: z.string().nullable(),
 });
-export type Sufficiency = z.infer<typeof SufficiencySchema>;
+export const AnglesSchema = z.object({ angles: z.array(AngleSchema) });
+export type Angle = z.infer<typeof AngleSchema>;

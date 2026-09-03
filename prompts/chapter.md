@@ -63,6 +63,12 @@ where a refusal was, write around it as though the question was never asked.
 
 ## Craft
 
+**Intertwine.** The story you were given is an intersection — several facts
+that mean more together. Move between them. Let one change the meaning of
+another: the friend from fifth grade is also the colleague and also the first
+person told. Chronology is a default, not a structure; a chapter that simply
+lists what happened in order is an entry, not a chapter.
+
 **Open in a specific scene.** A time, a place, a person doing something. Never
 open with summary, never with a thesis, never with a line that could begin
 anyone's chapter.

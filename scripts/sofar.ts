@@ -18,7 +18,7 @@ import { extract } from "../lib/pipeline/extract";
 import { merge } from "../lib/pipeline/merge";
 import * as memory from "../lib/memory";
 import {
-  assess,
+  findAngles,
   writeChapter,
   type Foundations,
   type MemoryRow,
@@ -32,15 +32,16 @@ try {
 }
 
 // phase0 §5 — the three chapters of session one, and how each opens and closes.
-// Each names the transcript blocks it is built from (SPEC §5.4: rows selected
-// by cluster). Draft one passed every row to every chapter and got one
-// chapter written three times.
+// Each is a slot the editor fills with an angle drawn from across the whole
+// record. Draft one passed every row to every chapter and got one chapter
+// written three times; draft two walled each chapter into its own interview
+// block and got three lists. Selection is by angle now (D3).
 const OUTLINES = [
   {
     kind: "prologue" as const,
     number: 0,
     label: "Prologue",
-    blocks: ["1"],
+    slot: "prologue" as const,
     outline: [
       "PROLOGUE — Now. Built from what the subject said about the present:",
       "yesterday, the thought they keep circling, who they talk to.",
@@ -56,7 +57,7 @@ const OUTLINES = [
     kind: "chapter" as const,
     number: 1,
     label: "Chapter I",
-    blocks: ["2"],
+    slot: "decision" as const,
     outline: [
       "CHAPTER I — The decision. Built from the most recent turning point.",
       "Open on the moment of deciding, not the backstory that led to it.",
@@ -68,9 +69,7 @@ const OUTLINES = [
     kind: "chapter" as const,
     number: 2,
     label: "Chapter II",
-    // Blocks 3 and 4, plus the foundations pass: the cities and why he left
-    // each are the backward pull, which is this chapter's job.
-    blocks: ["3", "4", "foundations"],
+    slot: "certainty" as const,
     outline: [
       "CHAPTER II — What he knows. Built from the certainties and what came",
       "before them. Open on the certainty itself, in the subject's own phrasing.",
@@ -80,26 +79,6 @@ const OUTLINES = [
     ].join("\n"),
   },
 ];
-
-/** Where each transcript block begins, from its === marker. */
-function blockBoundaries(transcript: string): { block: string; start: number }[] {
-  const out: { block: string; start: number }[] = [];
-  const re = /^=== (?:BLOCK (\d)|(FOUNDATIONS) PASS)/gm;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(transcript))) {
-    out.push({ block: m[1] ?? "foundations", start: m.index });
-  }
-  return out;
-}
-
-function blockOf(bounds: { block: string; start: number }[], offset: number): string {
-  let current = "0";
-  for (const b of bounds) {
-    if (offset >= b.start) current = b.block;
-    else break;
-  }
-  return current;
-}
 
 function arg(name: string): string | undefined {
   const i = process.argv.indexOf(`--${name}`);
@@ -208,12 +187,10 @@ async function run() {
   console.log(`  created: ${JSON.stringify(merged.created)}`);
   console.log(`  matched existing: ${JSON.stringify(merged.matched)}`);
 
-  // --- gather the memory layer for the writer -----------------------------
-  // Only rows this transcript produced or matched, each tagged with the block
-  // it came from. People are entities, not scenes, and go to every chapter.
-  const bounds = blockBoundaries(transcript);
-  const blockById = new Map<string, string>();
-  for (const r of merged.placed) blockById.set(r.id, blockOf(bounds, r.span_start));
+  // --- gather the memory layer for the editor -----------------------------
+  // Every row this transcript produced or matched. The editor reads all of
+  // it; the writer receives only what the editor kept for one angle.
+  const placedIds = new Set(merged.placed.map((r) => r.id));
 
   const [people, places, events, stances, costs, voiceRow] = await Promise.all([
     db.from("memory_people").select("*").eq("user_id", userId),
@@ -259,16 +236,23 @@ async function run() {
       text: r.what_it_cost,
     })),
   ];
-  const placedRows = rows.filter((r) => blockById.has(r.id));
+  const placedRows = rows.filter((r) => placedIds.has(r.id));
   console.log(`memory layer: ${placedRows.length} rows + ${personRows.length} people`);
 
-  // --- chapters (Opus, no exceptions — phase0 §5) -------------------------
-  // Before each one, the editor decides whether there is a chapter here at
-  // all (a scene, something said, a turn). If not, nothing is written; what is
-  // missing is recorded where the question generator reads (SPEC §5.6) and
-  // reported plainly. A thin chapter written anyway is the failure this
-  // prevents.
-  const needs: { chapter: string; what: string; why: string }[] = [];
+  // --- the editor: angles across the whole record --------------------------
+  // Where do the facts intersect? Each angle is writable now or names what is
+  // missing and the one question that would get it. Unwritable angles go to
+  // memory_threads, which the daily question generator reads (SPEC §5.6).
+  console.log("finding angles…");
+  const angles = await findAngles({ rows: placedRows, people: personRows, foundations });
+  const writable = angles.filter((a) => a.writable && a.rows.length > 0);
+  const open = angles.filter((a) => !a.writable);
+  console.log(`  ${angles.length} angle(s): ${writable.length} writable, ${open.length} need more`);
+  for (const a of angles) {
+    console.log(`  ${a.writable ? "✓" : "…"} ${a.slot ? `[${a.slot}] ` : ""}${a.line}`);
+  }
+
+  const needs: { chapter: string; what: string; why: string; ask: string | null }[] = [];
   const { data: existingThreads } = await db
     .from("memory_threads")
     .select("label")
@@ -276,51 +260,44 @@ async function run() {
   const threadLabels = new Set(
     (existingThreads ?? []).map((t: { label: string }) => t.label.toLowerCase()),
   );
+  const now = new Date().toISOString();
+  for (const a of open) {
+    for (const m of a.missing) needs.push({ chapter: a.line, ...m, ask: a.ask });
+    const label = a.line;
+    if (!threadLabels.has(label.toLowerCase())) {
+      await memory.insertThreads(db, [
+        {
+          user_id: userId,
+          label,
+          description: [
+            ...a.missing.map((m) => `Missing: ${m.what} — ${m.why}`),
+            a.ask ? `Ask: ${a.ask}` : "",
+          ]
+            .filter(Boolean)
+            .join(" | "),
+          first_seen_at: now,
+          last_seen_at: now,
+        },
+      ]);
+      threadLabels.add(label.toLowerCase());
+    }
+  }
 
+  // --- chapters (Opus, no exceptions — phase0 §5) -------------------------
   for (const spec of OUTLINES) {
-    const chapterRows = placedRows.filter((r) =>
-      spec.blocks.includes(blockById.get(r.id) ?? ""),
-    );
-    console.log(`${spec.label}: assessing ${chapterRows.length} rows from block ${spec.blocks.join("+")}…`);
-    const verdict = await assess({
-      outline: spec.outline,
-      rows: chapterRows,
-      people: personRows,
-      foundations,
-    });
-
-    if (!verdict.enough || !verdict.story) {
-      console.log(`  not enough for a chapter. Missing:`);
-      const now = new Date().toISOString();
-      const fresh = verdict.missing.filter((m) => !threadLabels.has(m.what.toLowerCase()));
-      for (const m of verdict.missing) {
-        console.log(`    - ${m.what} — ${m.why}`);
-        needs.push({ chapter: spec.label, ...m });
-      }
-      if (fresh.length > 0) {
-        await memory.insertThreads(
-          db,
-          fresh.map((m) => ({
-            user_id: userId,
-            label: m.what,
-            description: `Needed for ${spec.label}: ${m.why}`,
-            first_seen_at: now,
-            last_seen_at: now,
-          })),
-        );
-        for (const m of fresh) threadLabels.add(m.what.toLowerCase());
-      }
+    const angle = writable.find((a) => a.slot === spec.slot);
+    if (!angle) {
+      console.log(`${spec.label}: no writable angle fits this slot yet.`);
       console.log("");
       console.log("─".repeat(70));
       continue;
     }
-
-    const kept = chapterRows.filter((r) => verdict.keep.includes(r.id));
-    console.log(`  story: ${verdict.story}`);
-    console.log(`  kept ${kept.length} of ${chapterRows.length} rows; writing…`);
+    const kept = placedRows.filter((r) => angle.rows.includes(r.id));
+    console.log(`${spec.label}: ${angle.line}`);
+    console.log(`  ${kept.length} rows; writing…`);
     const result = await writeChapter({
       outline: spec.outline,
-      story: verdict.story,
+      story: angle.line,
       rows: kept,
       people: personRows,
       foundations,
@@ -378,7 +355,15 @@ async function run() {
   if (needs.length > 0) {
     console.log("");
     console.log("WHAT THE BOOK STILL NEEDS");
-    for (const n of needs) console.log(`  ${n.chapter}: ${n.what}`);
+    let last = "";
+    for (const n of needs) {
+      if (n.chapter !== last) {
+        console.log(`  ${n.chapter}`);
+        last = n.chapter;
+      }
+      console.log(`    - ${n.what}`);
+      if (n.ask) console.log(`      ask: ${n.ask}`);
+    }
     console.log("  (recorded as open threads for the question generator)");
   }
 

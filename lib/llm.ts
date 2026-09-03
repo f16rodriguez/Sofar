@@ -26,7 +26,7 @@ export const TASK_TIER = {
   extraction: "sonnet", // §5.2 (onboarding runs use the opus override)
   entity_resolution: "sonnet", // §5.3
   entailment: "sonnet", // chapter gate — prose ⊆ sources
-  sufficiency: "sonnet", // editor's call before writing: is there a chapter here?
+  angles: "sonnet", // the editor: where facts intersect, what is writable, what to ask
   chapter: "sonnet", // §5.4
   chapter_major: "opus", // §5.4 — first three, spine, arc rewrites
   revision_proposer: "sonnet", // §5.5
