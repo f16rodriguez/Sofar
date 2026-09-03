@@ -193,9 +193,27 @@ export async function complete<T>(opts: CompleteOptions<T>): Promise<T | string>
     { role: "user", content: opts.prompt },
   ];
 
+  // Overload (529) comes in windows of tens of seconds to minutes. The SDK's
+  // own two retries cover a blip; this covers the window. Everything before
+  // the failing call is already paid for, so giving up early is the expensive
+  // option.
+  const backoffMs = [10_000, 20_000, 40_000, 60_000];
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await once();
+    } catch (err) {
+      const overloaded =
+        err instanceof Anthropic.APIError &&
+        (err.status === 529 || /overloaded/i.test(err.message));
+      if (!overloaded || attempt >= backoffMs.length) throw err;
+      await new Promise((r) => setTimeout(r, backoffMs[attempt]));
+    }
+  }
+
   // Always stream. Extraction and chapter calls carry a large max_tokens and
   // can run past the SDK's non-streaming timeout; streaming also keeps long
   // Opus turns from dying on an HTTP deadline.
+  async function once(): Promise<T | string> {
   try {
     if (opts.schema) {
       const stream = client().messages.stream({
@@ -246,5 +264,6 @@ export async function complete<T>(opts: CompleteOptions<T>): Promise<T | string>
       );
     }
     throw err;
+  }
   }
 }

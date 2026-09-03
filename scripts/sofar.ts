@@ -9,8 +9,10 @@
 //   npm run sofar -- run --transcript transcripts/x.txt --user <uuid>
 
 import fs from "node:fs";
+import path from "node:path";
+import crypto from "node:crypto";
 import { serviceClient } from "../lib/supabase";
-import { usage } from "../lib/llm";
+import { usage, loadPrompt } from "../lib/llm";
 import { createAnswer } from "../lib/repo";
 import { extract } from "../lib/pipeline/extract";
 import { merge } from "../lib/pipeline/merge";
@@ -149,12 +151,33 @@ async function run() {
   );
 
   // --- extraction (Opus for onboarding, SPEC §5.2) ------------------------
-  console.log("extracting…");
-  const { extraction, dropped } = await extract({
-    transcript,
-    model: "opus",
-    onProgress: (pass) => console.log(`  ✓ ${pass}`),
-  });
+  // Cached on disk, keyed by transcript + extraction prompt, so a failure
+  // downstream (an overloaded chapter call, a bad outline) never re-bills the
+  // extraction. Lives under transcripts/, which is git-ignored: it is derived
+  // from personal data and stays with it. --no-cache forces a fresh pass.
+  const cacheKey = crypto
+    .createHash("sha256")
+    .update(transcript)
+    .update(loadPrompt("extraction"))
+    .digest("hex")
+    .slice(0, 16);
+  const cacheFile = path.join("transcripts", ".cache", `${cacheKey}.extraction.json`);
+  let extraction: Awaited<ReturnType<typeof extract>>["extraction"];
+  let dropped: Awaited<ReturnType<typeof extract>>["dropped"];
+
+  if (!process.argv.includes("--no-cache") && fs.existsSync(cacheFile)) {
+    ({ extraction, dropped } = JSON.parse(fs.readFileSync(cacheFile, "utf8")));
+    console.log(`extraction: cached (${cacheFile})`);
+  } else {
+    console.log("extracting…");
+    ({ extraction, dropped } = await extract({
+      transcript,
+      model: "opus",
+      onProgress: (pass) => console.log(`  ✓ ${pass}`),
+    }));
+    fs.mkdirSync(path.dirname(cacheFile), { recursive: true });
+    fs.writeFileSync(cacheFile, JSON.stringify({ extraction, dropped }));
+  }
   const counts = Object.entries({
     people: extraction.people.length,
     places: extraction.places.length,
