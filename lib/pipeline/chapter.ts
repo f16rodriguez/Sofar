@@ -1,0 +1,210 @@
+// Chapter writer (SPEC §5.4) with the two gates that make the prose
+// trustworthy:
+//
+//   1. Source citation — every paragraph must cite at least one memory row.
+//      Unsourced output is rejected and regenerated (CLAUDE.md non-negotiable).
+//   2. Naming — prose may never contain the name of a person whose row does
+//      not permit naming (interview findings, Finding 5).
+//
+// Neither is a prompt instruction. Both are checked here, and a draft that
+// fails is not returned.
+
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { complete, loadPrompt, MODELS, type ModelTier } from "../llm";
+import { ChapterSchema, type ChapterDraft } from "./schema";
+
+export interface Foundations {
+  book_name: string | null;
+  pronoun: "he" | "she" | "they";
+  age: number | null;
+  birthplace: string | null;
+  current_city: string | null;
+  prior_cities: string[];
+  occupation: string | null;
+  household: string | null;
+  family_of_origin: string | null;
+  style: "third" | "first";
+}
+
+export interface MemoryRow {
+  id: string;
+  kind: string;
+  text: string;
+}
+
+export interface PersonRow {
+  id: string;
+  label: string;
+  relationship: string | null;
+  quotes: string[];
+  may_name_in_prose: boolean;
+  prose_reference: string | null;
+}
+
+export interface WriteChapterOptions {
+  outline: string;
+  rows: MemoryRow[];
+  people: PersonRow[];
+  foundations: Foundations;
+  voice: Record<string, unknown>;
+  /** Opus for the first three chapters (SPEC §5.4, phase0 §5). */
+  model?: ModelTier;
+  maxAttempts?: number;
+}
+
+export interface ValidationIssue {
+  rule: "citation" | "naming";
+  detail: string;
+}
+
+export interface WriteChapterResult {
+  draft: ChapterDraft;
+  model: string;
+  attempts: number;
+  /** Issues from rejected attempts, kept so failures are visible. */
+  rejected: ValidationIssue[][];
+}
+
+export function paragraphsOf(bodyMd: string): string[] {
+  return bodyMd
+    .split(/\n\s*\n/)
+    .map((p) => p.trim())
+    .filter((p) => p.length > 0);
+}
+
+/** Names that must never appear in prose, with the phrase to use instead. */
+function forbiddenNames(people: PersonRow[]): { name: string; use: string }[] {
+  return people
+    .filter((p) => !p.may_name_in_prose)
+    .flatMap((p) => {
+      // A withheld person's label is usually already a relationship phrase
+      // ("his daughter") and carries no name to forbid. Guard the real names
+      // the transcript exposed for them, if any.
+      const candidates = [p.label]
+        .filter((l) => /^[A-Z][a-z]+/.test(l) && !/\s(his|her|their)\s/i.test(l))
+        .filter((l) => !/^(His|Her|Their|The)\b/.test(l));
+      return candidates.map((name) => ({
+        name,
+        use: p.prose_reference ?? p.relationship ?? "the relationship",
+      }));
+    });
+}
+
+export function validate(
+  draft: ChapterDraft,
+  allowedIds: Set<string>,
+  people: PersonRow[],
+): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+  const paragraphs = paragraphsOf(draft.body_md);
+
+  if (draft.paragraph_sources.length !== paragraphs.length) {
+    issues.push({
+      rule: "citation",
+      detail: `${paragraphs.length} paragraphs but ${draft.paragraph_sources.length} source lists`,
+    });
+  }
+
+  draft.paragraph_sources.forEach((sources, i) => {
+    const valid = sources.filter((id) => allowedIds.has(id));
+    if (valid.length === 0) {
+      const opening = (paragraphs[i] ?? "").slice(0, 70);
+      issues.push({
+        rule: "citation",
+        detail: `paragraph ${i + 1} cites no known memory row — "${opening}…"`,
+      });
+    }
+  });
+
+  for (const { name, use } of forbiddenNames(people)) {
+    const pattern = new RegExp(`\\b${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`);
+    if (pattern.test(draft.body_md)) {
+      issues.push({
+        rule: "naming",
+        detail: `names "${name}", who may not be named — use "${use}"`,
+      });
+    }
+  }
+
+  return issues;
+}
+
+function describePeople(people: PersonRow[]): string {
+  return people
+    .map((p) => {
+      const how = p.may_name_in_prose
+        ? `NAME THEM: "${p.label}"`
+        : `DO NOT NAME. Refer to them only as "${p.prose_reference ?? p.relationship ?? "this person"}"`;
+      const quotes = p.quotes.length
+        ? ` Said: ${p.quotes.map((q) => JSON.stringify(q)).join("; ")}`
+        : "";
+      return `- [${p.id}] ${p.relationship ?? "unstated"} — ${how}.${quotes}`;
+    })
+    .join("\n");
+}
+
+export async function writeChapter(
+  opts: WriteChapterOptions,
+): Promise<WriteChapterResult> {
+  const allowedIds = new Set([
+    ...opts.rows.map((r) => r.id),
+    ...opts.people.map((p) => p.id),
+  ]);
+  const maxAttempts = opts.maxAttempts ?? 3;
+  const rejected: ValidationIssue[][] = [];
+
+  const rowsBlock = opts.rows
+    .map((r) => `- [${r.id}] (${r.kind}) ${r.text}`)
+    .join("\n");
+
+  const base = [
+    `OUTLINE INSTRUCTION\n${opts.outline}`,
+    "",
+    `FOUNDATIONS\n${JSON.stringify(opts.foundations, null, 2)}`,
+    "",
+    `VOICE PROFILE\n${JSON.stringify(opts.voice, null, 2)}`,
+    "",
+    `PEOPLE — naming permission is absolute\n${describePeople(opts.people)}`,
+    "",
+    `MEMORY ROWS — the entire world of this chapter\n${rowsBlock}`,
+  ].join("\n");
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const correction =
+      rejected.length > 0
+        ? [
+            "",
+            "YOUR PREVIOUS ATTEMPT WAS REJECTED:",
+            ...rejected[rejected.length - 1].map((i) => `- ${i.rule}: ${i.detail}`),
+            "",
+            "Fix these. Cite a real row id for every paragraph, and never name",
+            "a person whose row forbids it.",
+          ].join("\n")
+        : "";
+
+    const draft = await complete({
+      task: "chapter_major",
+      model: opts.model,
+      system: loadPrompt("chapter"),
+      prompt: base + correction,
+      schema: ChapterSchema,
+      maxTokens: 32000,
+    });
+
+    const issues = validate(draft, allowedIds, opts.people);
+    if (issues.length === 0) {
+      return {
+        draft: { ...draft, source_memory_ids: [...new Set(draft.paragraph_sources.flat())] },
+        model: MODELS[opts.model ?? "opus"],
+        attempts: attempt,
+        rejected,
+      };
+    }
+    rejected.push(issues);
+  }
+
+  throw new Error(
+    `Chapter rejected after ${maxAttempts} attempts: ` +
+      rejected[rejected.length - 1].map((i) => `${i.rule} — ${i.detail}`).join("; "),
+  );
+}

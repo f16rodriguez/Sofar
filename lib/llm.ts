@@ -80,6 +80,11 @@ export interface CompleteOptions<T> {
   system?: string;
   /** Existing memory summary — passed as a cached block (SPEC §1, §5.2). */
   memoryContext?: string;
+  /**
+   * Large input reused across several calls in one run (a transcript across
+   * extraction passes). Sent as a cached block so it is paid for once.
+   */
+  cachedInput?: string;
   /** Zod schema for JSON output; omit for plain text. */
   schema?: z.ZodType<T>;
   maxTokens?: number;
@@ -113,6 +118,13 @@ function systemBlocks(opts: CompleteOptions<unknown>): Anthropic.TextBlockParam[
       cache_control: { type: "ephemeral" },
     });
   }
+  if (opts.cachedInput) {
+    blocks.push({
+      type: "text",
+      text: opts.cachedInput,
+      cache_control: { type: "ephemeral" },
+    });
+  }
   return blocks;
 }
 
@@ -126,27 +138,40 @@ export async function complete<T>(opts: CompleteOptions<T>): Promise<T | string>
     { role: "user", content: opts.prompt },
   ];
 
+  // Always stream. Extraction and chapter calls carry a large max_tokens and
+  // can run past the SDK's non-streaming timeout; streaming also keeps long
+  // Opus turns from dying on an HTTP deadline.
   try {
     if (opts.schema) {
-      const response = await client().messages.parse({
+      const stream = client().messages.stream({
         model,
         max_tokens: maxTokens,
         ...(system.length > 0 ? { system } : {}),
         messages,
         output_config: { format: zodOutputFormat(opts.schema) },
       });
+      const response = await stream.finalMessage();
       if (response.parsed_output == null) {
-        throw new Error(`LLM task "${opts.task}" returned unparseable output`);
+        // Name the reason: a truncated response (max_tokens) and a declined
+        // one look identical from a null parse, and need opposite fixes.
+        const why =
+          response.stop_reason === "max_tokens"
+            ? `output hit the ${maxTokens}-token cap and was truncated`
+            : response.stop_reason === "refusal"
+              ? `model declined (${response.stop_details?.category ?? "unspecified"})`
+              : `stop_reason=${response.stop_reason}`;
+        throw new Error(`LLM task "${opts.task}" returned unparseable output: ${why}`);
       }
       return response.parsed_output;
     }
 
-    const response = await client().messages.create({
+    const stream = client().messages.stream({
       model,
       max_tokens: maxTokens,
       ...(system.length > 0 ? { system } : {}),
       messages,
     });
+    const response = await stream.finalMessage();
     return response.content
       .filter((block): block is Anthropic.TextBlock => block.type === "text")
       .map((block) => block.text)

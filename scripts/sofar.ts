@@ -1,0 +1,263 @@
+// Sofar pipeline CLI (SPEC §8, M1):
+//
+//   sofar run --transcript file.txt --user <id>
+//
+// transcript → extraction → merge → three chapters → DB, and prints them.
+// Idempotent: running twice on the same transcript must not duplicate memory
+// rows or pile up chapters.
+//
+//   npm run sofar -- run --transcript transcripts/x.txt --user <uuid>
+
+import fs from "node:fs";
+import { serviceClient } from "../lib/supabase";
+import { createAnswer } from "../lib/repo";
+import { extract } from "../lib/pipeline/extract";
+import { merge } from "../lib/pipeline/merge";
+import {
+  writeChapter,
+  type Foundations,
+  type MemoryRow,
+  type PersonRow,
+} from "../lib/pipeline/chapter";
+
+try {
+  process.loadEnvFile(".env.local");
+} catch {
+  // fall back to the ambient environment
+}
+
+// phase0 §5 — the three chapters of session one, and how each opens and closes.
+const OUTLINES = [
+  {
+    kind: "prologue" as const,
+    number: 0,
+    outline: [
+      "PROLOGUE — Now. Built from what the subject said about the present:",
+      "yesterday, the thought they keep circling, who they talk to.",
+      "Open in scene: a real moment from yesterday, a real time, a real place.",
+      "Establish the narrator's voice and the thought they cannot put down.",
+      "End on the thing they skipped or would not say.",
+    ].join("\n"),
+  },
+  {
+    kind: "chapter" as const,
+    number: 1,
+    outline: [
+      "CHAPTER I — The decision. Built from the most recent turning point.",
+      "Open on the moment of deciding, not the backstory that led to it.",
+      "Who they told, and what they left out when they told them.",
+      "End on the gap between what they expected and what actually happened.",
+    ].join("\n"),
+  },
+  {
+    kind: "chapter" as const,
+    number: 2,
+    outline: [
+      "CHAPTER II — What he knows. Built from the certainties and what came",
+      "before them. Open on the certainty itself, in the subject's own phrasing.",
+      "Go back to the day it was learned, then to the earliest memory that",
+      "connects. End with the person who would tell it differently — unresolved.",
+      "If the record is thin on origin, stay thin. Do not manufacture a memory.",
+    ].join("\n"),
+  },
+];
+
+function arg(name: string): string | undefined {
+  const i = process.argv.indexOf(`--${name}`);
+  return i >= 0 ? process.argv[i + 1] : undefined;
+}
+
+async function run() {
+  const file = arg("transcript");
+  const userId = arg("user");
+  if (!file || !userId) {
+    console.error("usage: sofar run --transcript <file> --user <uuid>");
+    process.exit(1);
+  }
+
+  const transcript = fs.readFileSync(file, "utf8");
+  const db = serviceClient();
+
+  // --- foundations ------------------------------------------------------
+  const { data: user, error: userError } = await db
+    .from("users")
+    .select("*")
+    .eq("id", userId)
+    .single();
+  if (userError || !user) {
+    throw new Error(`no such user: ${userId}`);
+  }
+  const foundations: Foundations = {
+    book_name: user.book_name,
+    pronoun: user.pronoun ?? "they",
+    age: user.age,
+    birthplace: user.birthplace,
+    current_city: user.current_city,
+    prior_cities: user.prior_cities ?? [],
+    occupation: user.occupation,
+    household: user.household,
+    family_of_origin: user.family_of_origin,
+    style: user.style ?? "third",
+  };
+
+  // --- answer row: reuse if this exact transcript is already on record ----
+  const { data: priorAnswers } = await db
+    .from("answers")
+    .select("id, transcript")
+    .eq("user_id", userId)
+    .eq("input", "text");
+  const prior = (priorAnswers ?? []).find(
+    (a: { transcript: string | null }) => a.transcript === transcript,
+  );
+  const answerId =
+    prior?.id ??
+    (await createAnswer(db, { userId, transcript, input: "text" })).id;
+  console.log(
+    prior ? `answer: reusing ${answerId}` : `answer: created ${answerId}`,
+  );
+
+  // --- extraction (Opus for onboarding, SPEC §5.2) ------------------------
+  console.log("extracting…");
+  const { extraction, dropped } = await extract({ transcript, model: "opus" });
+  const counts = Object.entries({
+    people: extraction.people.length,
+    places: extraction.places.length,
+    events: extraction.events.length,
+    stances: extraction.stances.length,
+    costs: extraction.costs.length,
+    threads: extraction.open_threads.length,
+    unsaid: extraction.unsaid.length,
+    inferred: extraction.inferred.length,
+  })
+    .map(([k, v]) => `${k} ${v}`)
+    .join(", ");
+  console.log(`  ${counts}`);
+  if (dropped.length > 0) {
+    console.log(`  dropped ${dropped.length} item(s) whose span did not support them:`);
+    for (const d of dropped) console.log(`    - ${d.kind}: ${d.label} (${d.reason})`);
+  }
+
+  // --- merge --------------------------------------------------------------
+  console.log("merging…");
+  const merged = await merge(db, userId, answerId, extraction);
+  console.log(`  created: ${JSON.stringify(merged.created)}`);
+  console.log(`  matched existing: ${JSON.stringify(merged.matched)}`);
+
+  // --- gather the memory layer for the writer -----------------------------
+  // M1 passes the whole memory layer to each chapter and lets the outline
+  // select. Clustering by thread/event (SPEC §5.4) matters once the layer
+  // outgrows one transcript; with a single onboarding session it would only
+  // hide rows the chapter legitimately needs.
+  const [people, places, events, stances, costs, voiceRow] = await Promise.all([
+    db.from("memory_people").select("*").eq("user_id", userId),
+    db.from("memory_places").select("*").eq("user_id", userId),
+    db.from("memory_events").select("*").eq("user_id", userId),
+    db.from("memory_stances").select("*").eq("user_id", userId),
+    db.from("memory_costs").select("*").eq("user_id", userId),
+    db.from("memory_voice").select("profile").eq("user_id", userId).maybeSingle(),
+  ]);
+
+  const personRows: PersonRow[] = (people.data ?? []).map((p) => ({
+    id: p.id,
+    label: p.label,
+    relationship: p.relationship,
+    quotes: Array.isArray(p.quotes) ? p.quotes : [],
+    may_name_in_prose: p.may_name_in_prose,
+    prose_reference: p.prose_reference,
+  }));
+
+  // memory_inferred and memory_unsaid are deliberately absent: nothing
+  // inferred reaches prose (CLAUDE.md non-negotiable).
+  const rows: MemoryRow[] = [
+    ...(places.data ?? []).map((r) => ({
+      id: r.id,
+      kind: "place",
+      text: [r.label, r.when_text, r.what_happened].filter(Boolean).join(" — "),
+    })),
+    ...(events.data ?? []).map((r) => ({
+      id: r.id,
+      kind: "event",
+      text: [r.what, r.when_text, r.where_text, r.outcome]
+        .filter(Boolean)
+        .join(" — "),
+    })),
+    ...(stances.data ?? []).map((r) => ({
+      id: r.id,
+      kind: "stance",
+      text: [r.statement, r.rationale].filter(Boolean).join(" — because "),
+    })),
+    ...(costs.data ?? []).map((r) => ({
+      id: r.id,
+      kind: "cost",
+      text: r.what_it_cost,
+    })),
+  ];
+  console.log(`memory layer: ${rows.length} rows + ${personRows.length} people`);
+
+  // --- chapters (Opus, no exceptions — phase0 §5) -------------------------
+  for (const spec of OUTLINES) {
+    console.log(`writing ${spec.kind} ${spec.number}…`);
+    const result = await writeChapter({
+      outline: spec.outline,
+      rows,
+      people: personRows,
+      foundations,
+      voice: (voiceRow.data?.profile as Record<string, unknown>) ?? {},
+      model: "opus",
+    });
+
+    for (const attempt of result.rejected) {
+      console.log(`  attempt rejected: ${attempt.map((i) => i.rule).join(", ")}`);
+      for (const issue of attempt) console.log(`    - ${issue.detail}`);
+    }
+
+    const words = result.draft.body_md.split(/\s+/).filter(Boolean).length;
+    const payload = {
+      user_id: userId,
+      number: spec.number,
+      title: result.draft.title,
+      kind: spec.kind,
+      body_md: result.draft.body_md,
+      status: "draft",
+      model: result.model,
+      source_answer_ids: [answerId],
+      source_memory_ids: result.draft.source_memory_ids,
+      word_count: words,
+    };
+
+    // Idempotent: one row per (user, kind, number); rerunning revises it.
+    const { data: existing } = await db
+      .from("chapters")
+      .select("id, version")
+      .eq("user_id", userId)
+      .eq("kind", spec.kind)
+      .eq("number", spec.number)
+      .maybeSingle();
+
+    if (existing) {
+      await db
+        .from("chapters")
+        .update({ ...payload, version: existing.version + 1 })
+        .eq("id", existing.id);
+    } else {
+      await db.from("chapters").insert(payload);
+    }
+
+    console.log(`  "${result.draft.title}" — ${words} words, ${result.attempts} attempt(s)`);
+    console.log("");
+    console.log(result.draft.body_md);
+    console.log("");
+    console.log("─".repeat(70));
+  }
+}
+
+const command = process.argv[2];
+if (command !== "run") {
+  console.error("usage: sofar run --transcript <file> --user <uuid>");
+  process.exit(1);
+}
+
+run().catch((err) => {
+  console.error(`sofar: ${err instanceof Error ? err.message : err}`);
+  process.exit(1);
+});

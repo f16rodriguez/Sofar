@@ -22,6 +22,10 @@ export interface NewPerson {
   first_answer_id?: string;
   quotes?: string[];
   embedding?: number[];
+  /** True only when the user actually spoke this person's name (Finding 5). */
+  may_name_in_prose?: boolean;
+  /** How prose refers to them when naming is not permitted. */
+  prose_reference?: string;
 }
 
 export interface NewPlace {
