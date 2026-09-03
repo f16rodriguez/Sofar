@@ -40,6 +40,53 @@ function client(): Anthropic {
   return (_client ??= new Anthropic());
 }
 
+// --- cost accounting ---------------------------------------------------------
+// COGS per user is a first-order product constraint (concept §7). Every call
+// is metered here and any run can print its bill. USD per million tokens;
+// cache reads are 10% of input, cache writes 125%.
+
+const PRICE: Record<string, { input: number; output: number }> = {
+  "claude-opus-5": { input: 5, output: 25 },
+  "claude-sonnet-5": { input: 2, output: 10 },
+  "claude-haiku-4-5": { input: 1, output: 5 },
+};
+
+export const usage = {
+  calls: 0,
+  input: 0,
+  output: 0,
+  cacheRead: 0,
+  cacheWrite: 0,
+  usd: 0,
+  reset() {
+    this.calls = this.input = this.output = this.cacheRead = this.cacheWrite = this.usd = 0;
+  },
+  summary(): string {
+    return (
+      `${this.calls} calls · in ${this.input.toLocaleString()} ` +
+      `(cache read ${this.cacheRead.toLocaleString()}, write ${this.cacheWrite.toLocaleString()}) ` +
+      `· out ${this.output.toLocaleString()} · $${this.usd.toFixed(3)}`
+    );
+  },
+};
+
+function meter(model: string, u: Anthropic.Usage): void {
+  const price = PRICE[model] ?? { input: 5, output: 25 };
+  const cacheRead = u.cache_read_input_tokens ?? 0;
+  const cacheWrite = u.cache_creation_input_tokens ?? 0;
+  usage.calls += 1;
+  usage.input += u.input_tokens;
+  usage.output += u.output_tokens;
+  usage.cacheRead += cacheRead;
+  usage.cacheWrite += cacheWrite;
+  usage.usd +=
+    (u.input_tokens * price.input +
+      cacheRead * price.input * 0.1 +
+      cacheWrite * price.input * 1.25 +
+      u.output_tokens * price.output) /
+    1_000_000;
+}
+
 // --- prompt loading ---------------------------------------------------------
 
 const promptCache = new Map<string, string>();
@@ -161,6 +208,7 @@ export async function complete<T>(opts: CompleteOptions<T>): Promise<T | string>
         },
       });
       const response = await stream.finalMessage();
+      meter(model, response.usage);
       if (response.parsed_output == null) {
         // Name the reason: a truncated response (max_tokens) and a declined
         // one look identical from a null parse, and need opposite fixes.
@@ -183,6 +231,7 @@ export async function complete<T>(opts: CompleteOptions<T>): Promise<T | string>
       messages,
     });
     const response = await stream.finalMessage();
+    meter(model, response.usage);
     return response.content
       .filter((block): block is Anthropic.TextBlock => block.type === "text")
       .map((block) => block.text)

@@ -10,6 +10,7 @@
 
 import fs from "node:fs";
 import { serviceClient } from "../lib/supabase";
+import { usage } from "../lib/llm";
 import { createAnswer } from "../lib/repo";
 import { extract } from "../lib/pipeline/extract";
 import { merge } from "../lib/pipeline/merge";
@@ -136,6 +137,7 @@ async function run() {
     .map(([k, v]) => `${k} ${v}`)
     .join(", ");
   console.log(`  ${counts}`);
+  console.log(`  cost so far: ${usage.summary()}`);
   if (dropped.length > 0) {
     console.log(`  dropped ${dropped.length} item(s) whose span did not support them:`);
     for (const d of dropped) console.log(`    - ${d.kind}: ${d.label} (${d.reason})`);
@@ -253,6 +255,8 @@ async function run() {
     console.log("");
     console.log("─".repeat(70));
   }
+
+  console.log(`\nRUN COST: ${usage.summary()}`);
 }
 
 const command = process.argv[2];
