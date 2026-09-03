@@ -243,6 +243,16 @@ function sentencesOf(paragraph: string): string[] {
   return parts.map((x) => x.trim()).filter(Boolean);
 }
 
+/** Match text the way a reader would: ignoring case, quote style, wrapping. */
+function norm(t: string): string {
+  return t
+    .toLowerCase()
+    .replace(/[\u201c\u201d]/g, '"')
+    .replace(/[\u2018\u2019]/g, "'")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function wordOverlap(sentence: string, claim: string): number {
   const words = (t: string) =>
     new Set(t.toLowerCase().replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter((w) => w.length > 3));
@@ -278,7 +288,15 @@ export function excise(draft: ChapterDraft, issues: ValidationIssue[]): ChapterD
     let text = p;
     if (claims && claims.length > 0) {
       text = sentencesOf(p)
-        .filter((sent) => !claims.some((c) => sent.includes(c) || wordOverlap(sent, c) >= 0.6))
+        .filter(
+          (sent) =>
+            !claims.some(
+              (c) =>
+                norm(sent).includes(norm(c)) ||
+                norm(c).includes(norm(sent)) ||
+                wordOverlap(sent, c) >= 0.6,
+            ),
+        )
         .join(" ");
     }
     if (text.trim().length > 0) {
@@ -398,10 +416,15 @@ export async function writeChapter(
     opts.onAttempt?.(attempt, issues);
   }
 
-  // Model repairs exhausted. If what remains is entailment only, cut it.
-  const last = rejected[rejected.length - 1];
-  if (draft && last.every((i) => i.rule === "entailment")) {
-    const cut = excise(draft, last);
+  // Model repairs exhausted. Cut the named sentences and keep cutting until
+  // the gate is satisfied. Each round costs one cheap gate call and no Opus,
+  // and it converges: a paragraph that keeps failing eventually empties.
+  let cut = draft;
+  for (let round = 0; cut && round < 3; round++) {
+    const last = rejected[rejected.length - 1];
+    if (!last.every((i) => i.rule === "entailment")) break;
+
+    cut = excise(cut, last);
     const recheck = [
       ...validate(cut, allowedIds, opts.people),
       ...(await checkEntailment(cut, sources, opts.foundations, opts.story)),
@@ -410,13 +433,13 @@ export async function writeChapter(
       return {
         draft: { ...cut, source_memory_ids: [...new Set(cut.paragraph_sources.flat())] },
         model: MODELS[opts.model ?? "opus"],
-        attempts: maxAttempts + 1,
+        attempts: maxAttempts + 1 + round,
         rejected,
         excised: true,
       };
     }
     rejected.push(recheck);
-    opts.onAttempt?.(maxAttempts + 1, recheck);
+    opts.onAttempt?.(maxAttempts + 1 + round, recheck);
   }
 
   throw new Error(

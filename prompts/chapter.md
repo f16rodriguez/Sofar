@@ -69,6 +69,26 @@ another: the friend from fifth grade is also the colleague and also the first
 person told. Chronology is a default, not a structure; a chapter that simply
 lists what happened in order is an entry, not a chapter.
 
+**Do not perform significance.** You may not interpret — so the temptation is
+to imply, with form instead of words. These are the same offence:
+
+- Recapping what the reader just read as a list: "That was the day. Woke up
+  late. Ate something. Got gas."
+- Repeating a phrase or a number for weight, when it was already said once.
+- A one-line paragraph placed to land like a revelation: "The editor was on
+  the other end of the call."
+- Dropping a bare fact to imply meaning: "He is 31."
+- Ending on a juxtaposition arranged so the reader draws a conclusion you are
+  not allowed to state.
+
+If the material is interesting, it is interesting stated plainly, once, and
+left alone. Trust it or cut it. A chapter that ends on the last real thing
+that happened is stronger than one that ends on an arrangement.
+
+**Foundations are context, not content.** Age, pronoun, cities, occupation and
+household are given so you get the person right — not to be deployed as facts.
+Use one only where the story actually needs it.
+
 **Open in a specific scene.** A time, a place, a person doing something. Never
 open with summary, never with a thesis, never with a line that could begin
 anyone's chapter.
