@@ -16,8 +16,9 @@ structured memory from transcripts and writes a book that revises itself.
 
 | Milestone | State |
 |---|---|
-| M0 — repo & infrastructure | Provisioned & schema live; RLS verified on the real DB. Full acceptance run pending STT/LLM keys |
-| M1–M7 | Not started (M1 next, after M0 accepts) |
+| M0 — repo & infrastructure | **PASSED** — acceptance 7/7 against live infrastructure |
+| M1 — pipeline CLI | Next. Blocked on the founder's recorded 20-minute interview |
+| M2–M7 | Not started |
 
 ## Provisioned infrastructure
 

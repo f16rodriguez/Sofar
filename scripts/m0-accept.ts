@@ -14,6 +14,14 @@ import { transcribe } from "../lib/stt";
 import { complete } from "../lib/llm";
 import { requireEnv } from "../lib/env";
 
+// Load .env.local so `npm run accept:m0` works without exporting anything.
+// lib/* read env lazily at call time, so loading here is early enough.
+try {
+  process.loadEnvFile(".env.local");
+} catch {
+  // No .env.local — fall back to the ambient environment.
+}
+
 const results: { name: string; pass: boolean; detail: string }[] = [];
 
 function record(name: string, pass: boolean, detail = "") {
