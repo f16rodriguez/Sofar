@@ -17,7 +17,7 @@ structured memory from transcripts and writes a book that revises itself.
 | Milestone | State |
 |---|---|
 | M0 — repo & infrastructure | **PASSED** — acceptance 7/7 against live infrastructure |
-| M1 — pipeline CLI | Next. Blocked on the founder's recorded 20-minute interview |
+| M1 — pipeline CLI | **Mechanically passed** on the founder's interview: every paragraph traces to a transcript quote (enforced), reruns create no duplicate rows, three chapters generated at ~$0.46/run. Prose is honest and short — 780 words from a terse 20 minutes. Length is bounded by the interview, not the writer (`docs/interview-findings.md`) |
 | M2–M7 | Not started |
 
 ## Provisioned infrastructure

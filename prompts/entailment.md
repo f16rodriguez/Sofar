@@ -21,6 +21,12 @@ You are checking containment: prose ⊆ sources.
 - A report of a refusal: that they skipped, declined, would not say, or
   rejected a question. Refusals are never in the rows.
 - A quotation that does not appear verbatim in a cited row.
+- **A true fact from elsewhere in the record.** Only this paragraph's cited
+  rows and the FOUNDATIONS block are sources. The voice profile, other
+  chapters, and things the person said in some other part of the interview
+  are not. If the paragraph reports something that happened and no cited row
+  reports it, it is unsupported — even if it happened. Check the last
+  paragraph as hard as the first; endings are where borrowed material lands.
 
 ## What does not count
 

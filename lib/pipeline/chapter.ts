@@ -174,8 +174,10 @@ async function checkEntailment(
       blocks.join("\n\n---\n\n"),
     ].join("\n"),
     schema: EntailmentSchema,
-    effort: "medium",
-    maxTokens: 6000,
+    // The product's honesty rests on this call. Medium effort passed a
+    // paragraph whose facts came from a different chapter's block.
+    effort: "high",
+    maxTokens: 8000,
   });
 
   return verdict.paragraphs

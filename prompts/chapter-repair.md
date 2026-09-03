@@ -16,6 +16,14 @@ rewriting.
 - If cutting a claim leaves a sentence that no longer reads, join it to its
   neighbour or drop it — but add no new content to bridge the gap.
 
+- If a cut removed what the title referred to, retitle from what remains —
+  in the book's register, from the person's own words where possible.
+- If a cut removed the ending, end on the last surviving sourced sentence.
+  Reorder surviving sentences within a paragraph if that makes a better last
+  line. Do not write a new one.
+- Surviving sentences in one paragraph may be joined or reordered so the
+  paragraph reads. No words that carry a claim may be added to do it.
+
 ## Do not
 
 - Do not rewrite sentences that were not rejected. Do not improve them. Do not
