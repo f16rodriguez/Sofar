@@ -7,8 +7,10 @@ structured memory from transcripts and writes a book that revises itself.
   at a time, each gated on its acceptance test.
 - **`CLAUDE.md`** — non-negotiables and conventions for anyone (human or
   agent) working in this repo.
-- **`sofar-phase0-interview.md`** *(founder-supplied, not yet in repo)* —
-  interviewer rules, seed script, prose rules. Loaded verbatim into prompts.
+- **`sofar-concept.md`** / **`sofar-phase0-interview.md`** — product concept;
+  interviewer rules, seed script, prose rules (§2 + §5 are loaded verbatim as
+  `prompts/preamble.md`).
+- **`design/landing.html`** — approved landing page, static, wired up in M7.
 
 ## Status
 
@@ -20,9 +22,11 @@ structured memory from transcripts and writes a book that revises itself.
 ## Provisioned infrastructure
 
 - **Supabase project**: `Sofar` (`onfxavpzvdazocvandeh`, us-east-1) —
-  `https://onfxavpzvdazocvandeh.supabase.co`. Migrations 0001–0003 applied;
+  `https://onfxavpzvdazocvandeh.supabase.co`. Migrations 0001–0004 applied;
   security advisors clean; two-user RLS test passed against the live DB
   (cross-user reads return 0 rows, forged inserts rejected by policy).
+  Interview seed bank (Q1–Q12) loaded. The daily-question seed bank (SPEC
+  §5.6) is still founder-pending and blocks M4 only.
 
 ## Setup
 

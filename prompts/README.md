@@ -4,13 +4,12 @@ All prompts live here as versioned markdown, loaded at runtime via
 `loadPrompt(name)` in `lib/llm.ts`. No prompt strings inline in code
 (CLAUDE.md conventions).
 
-## Required before M1
+## Present
 
 - **`preamble.md`** — the interviewer/prose rules from
-  `sofar-phase0-interview.md` §2 and §5, **verbatim**. Founder-supplied;
-  never invented or paraphrased. Every LLM call includes it as the shared
-  system preamble (SPEC §5). `loadPreamble()` fails loudly until this file
-  exists.
+  `sofar-phase0-interview.md` §2 and §5, **verbatim** (founder-supplied;
+  never edited or paraphrased here — change the source doc, then re-extract).
+  Every LLM call includes it as the shared system preamble (SPEC §5).
 
 ## Added per milestone
 

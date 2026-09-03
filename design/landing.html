@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light only">
+<meta name="theme-color" content="#F4EEE2">
+<title>Sofar — the book of your life, so far</title>
+<meta name="description" content="Twenty minutes of questions. By tomorrow, the first three chapters of your own book.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Instrument+Sans:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --cream:#F4EEE2; --ink:#1C1A17; --ox:#7A2E2A; --muted:#7A746A; --rule:#D9D0BF; --parch:#EFE5DA;
+    --serif:'Newsreader',Georgia,serif; --sans:'Instrument Sans',system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html{background:#F4EEE2 !important;color-scheme:light only}
+  body{margin:0;background:#F4EEE2 !important;color:#1C1A17 !important;font-family:var(--serif);font-size:19px;line-height:1.6;-webkit-font-smoothing:antialiased}
+  a{color:#7A2E2A}
+  h1,h2,h3,p,li,dt,dd,span,strong{color:inherit}
+  .wrap{max-width:640px;margin:0 auto;padding:0 24px}
+
+  header{padding:28px 0 0}
+  header .wrap{display:flex;justify-content:space-between;align-items:baseline}
+  .wordmark{font-family:var(--serif);font-size:22px;letter-spacing:-.01em;text-decoration:none;color:var(--ink);display:inline-flex;align-items:flex-start;gap:4px}
+  .wordmark .rib{display:inline-block;width:8px;height:22px;background:var(--ox);position:relative;top:-8px}
+  .wordmark .rib:after{content:"";position:absolute;left:0;bottom:-1px;border-left:4px solid transparent;border-right:4px solid transparent;border-bottom:4px solid var(--cream)}
+  header .small{font-family:var(--sans);font-size:14px;color:var(--muted)}
+
+  .hero{padding:96px 0 56px}
+  h1{font-family:var(--serif);font-weight:400;font-size:44px;line-height:1.12;letter-spacing:-.015em;margin:0 0 28px;max-width:600px}
+  .lede{font-size:21px;line-height:1.5;margin:0 0 36px;max-width:560px}
+  .btn{display:inline-block;font-family:var(--sans);font-size:16px;font-weight:500;background:#7A2E2A !important;color:#F4EEE2 !important;padding:16px 26px;text-decoration:none;border-radius:4px}
+  .btn:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
+  .under{font-family:var(--sans);font-size:14px;color:var(--muted);margin:14px 0 0}
+
+  .page{margin:24px 0 0;background:#FBF7EF !important;color:#1C1A17;border:0.5px solid var(--rule);padding:44px 40px 36px;position:relative;box-shadow:0 1px 0 var(--rule)}
+  .page .rib{position:absolute;top:-1px;right:36px;width:16px;height:52px;background:var(--ox)}
+  .page .rib:after{content:"";position:absolute;left:0;bottom:-1px;border-left:8px solid transparent;border-right:8px solid transparent;border-bottom:8px solid #FBF7EF}
+  .page .num{font-size:40px;color:var(--ox);line-height:1;margin:0 0 6px}
+  .page h2{font-weight:400;font-size:24px;line-height:1.25;margin:0 0 20px;letter-spacing:-.01em}
+  .page p{font-size:17px;line-height:1.6;margin:0 0 14px}
+  .page p:first-of-type::first-letter{font-size:40px;float:left;line-height:.85;margin:6px 6px 0 0;color:var(--ox)}
+  .page .cap{font-family:var(--sans);font-size:13px;color:var(--muted);margin:22px 0 0;border-top:0.5px solid var(--rule);padding-top:12px}
+
+  section{padding:56px 0;border-top:0.5px solid var(--rule)}
+  section h2{font-weight:400;font-size:30px;line-height:1.2;letter-spacing:-.01em;margin:0 0 22px}
+  section p{margin:0 0 18px;max-width:580px}
+  .step{padding:22px 0;border-top:0.5px solid #D9D0BF}
+  .step:last-child{border-bottom:0.5px solid #D9D0BF}
+  .step h3{font-weight:400;font-size:22px;line-height:1.25;margin:0 0 8px;letter-spacing:-.01em}
+  .step h3 em{font-style:normal;color:#7A2E2A;margin-right:10px}
+  .step p{font-size:17px;line-height:1.6;margin:0;color:#3D3932;max-width:560px}
+
+  .plain{background:#EFE5DA !important;color:#1C1A17;padding:28px 30px;border:0.5px solid #C9B9B0}
+  .plain p{font-size:18px}
+  .plain p:last-child{margin:0}
+
+  .terms{font-family:var(--sans);font-size:15px;line-height:1.6;color:#3D3932;max-width:560px}
+  .terms dt{font-weight:500;color:var(--ink);margin-top:14px}
+  .terms dd{margin:2px 0 0}
+
+  footer{padding:40px 0 56px;border-top:0.5px solid var(--rule);font-family:var(--sans);font-size:13px;color:var(--muted)}
+  footer .wrap{display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px}
+
+  @media (max-width:520px){
+    body{font-size:18px}
+    .hero{padding:64px 0 40px}
+    h1{font-size:34px}
+    .lede{font-size:19px}
+    .page{padding:32px 22px 28px}
+    .page .rib{right:22px}
+    section{padding:44px 0}
+    section h2{font-size:26px}
+  }
+  @media (prefers-reduced-motion:no-preference){
+    .btn{transition:background .15s ease}
+    .btn:hover{background:#63231F}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <a class="wordmark" href="#"><span class="rib" aria-hidden="true"></span>Sofar</a>
+    <span class="small">A living autobiography</span>
+  </div>
+</header>
+
+<main>
+  <div class="hero">
+    <div class="wrap">
+      <h1>You're the only one who was there for all of it.</h1>
+      <p class="lede">Sofar writes it down while you still remember. Twenty minutes of questions, and by tomorrow you have the first three chapters of your own book — written from what you say, in your voice, about your life as it is right now. Not a journal. A book, with you as the character.</p>
+      <a class="btn" href="#start">Start the interview</a>
+      <p class="under">14 days free, full access. You'll be asked to confirm you're okay being recorded.</p>
+
+      <div class="page" aria-label="Sample chapter">
+        <div class="rib" aria-hidden="true"></div>
+        <div class="num">I</div>
+        <h2>The year she stopped asking permission</h2>
+        <p>She had left three jobs before, and each time she had waited for someone to tell her it was allowed. This time no one did. She noticed that only later, on the drive home, when the silence in the car felt like a verdict she had handed down herself.</p>
+        <p>What she told her mother was that the money was fine. What she told herself was harder to repeat.</p>
+        <p class="cap">Written from a twenty-minute interview. Every sentence traces to something she said.</p>
+      </div>
+    </div>
+  </div>
+
+  <section>
+    <div class="wrap">
+      <h2>How it works</h2>
+      <div class="step">
+        <h3><em>I</em>An interview, by voice</h3>
+        <p>Twenty minutes. The questions are specific: what happened yesterday, who you told, what it cost you. Nothing about how you feel in the abstract. Skip anything. The last question is optional, and you'll know when it's coming.</p>
+      </div>
+      <div class="step">
+        <h3><em>II</em>Three chapters by tomorrow</h3>
+        <p>A prologue set in your present. The most recent decision that changed your days. The thing you're most sure of, and where it came from. Read them, then tell us the sentence that's wrong.</p>
+      </div>
+      <div class="step">
+        <h3><em>III</em>One question a day after that</h3>
+        <p>Thirty seconds, by voice, plus one deeper question each week. The book grows. Chapters get revised as it learns you. The last chapter is always titled "So far," and it holds whatever is still open.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <h2>What it isn't</h2>
+      <p>It isn't therapy. It isn't a quiz, a personality test, or a prompt to journal. It won't tell you who you really are, and it won't grade your answers. It's an interview, and then it's a book. If you say something is true, the book writes it as true. If you contradict yourself, it asks — it never decides.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <h2>Privacy, plainly</h2>
+      <div class="plain">
+        <p>Your recordings are transcribed and then deleted within sixty days. Nothing you say is used to train anything.</p>
+        <p>No one reads your transcript. The book is written by a model, and the only person who sees it is you.</p>
+        <p>Your book is yours. Export it anytime as a PDF. Delete everything anytime, and it's gone.</p>
+        <p>Nothing is ever shared unless you choose it — and if you do, the names of other people in your life are changed first.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="start">
+    <div class="wrap">
+      <h2>The trial</h2>
+      <p>Fourteen days, everything included: the interview, the daily questions, the revisions, the export. A card is required so that no one's book stops halfway through — you won't be charged until day fifteen, and you can cancel in one tap before then.</p>
+      <dl class="terms">
+        <dt>After the trial</dt>
+        <dd>$14.99 a month, or $99 a year. Cancel anytime. Your book exports whether you stay or not.</dd>
+        <dt>What you need</dt>
+        <dd>A phone, a quiet room, and twenty minutes you won't be interrupted.</dd>
+      </dl>
+      <p style="margin-top:32px"><a class="btn" href="#">Start the interview</a></p>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>Sofar</span>
+    <span><a href="#">Privacy</a> &nbsp; <a href="#">Terms</a> &nbsp; <a href="#">Contact</a></span>
+  </div>
+</footer>
+
+</body>
+</html>
