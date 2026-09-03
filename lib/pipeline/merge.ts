@@ -92,12 +92,21 @@ async function load(
   }));
 }
 
+export interface PlacedRow {
+  id: string;
+  kind: "person" | "place" | "event" | "stance" | "cost";
+  /** Offset into the transcript, so rows can be clustered by block. */
+  span_start: number;
+}
+
 export interface MergeResult {
   created: Record<string, number>;
   matched: Record<string, number>;
   /** label → row id, for every person now on record. */
   peopleIds: Map<string, string>;
   memoryIds: string[];
+  /** Every row this extraction produced or matched, with its transcript position. */
+  placed: PlacedRow[];
 }
 
 export async function merge(
@@ -108,7 +117,18 @@ export async function merge(
 ): Promise<MergeResult> {
   const created: Record<string, number> = {};
   const matched: Record<string, number> = {};
+
+  // When was this said? Every stance carries the timestamp of the answer it
+  // came from — the belief-change interludes (concept §3) need to know when a
+  // belief was held, not just that it was.
+  const { data: answer } = await db
+    .from("answers")
+    .select("created_at")
+    .eq("id", answerId)
+    .single();
+  const statedAt: string = answer?.created_at ?? new Date().toISOString();
   const memoryIds: string[] = [];
+  const placed: PlacedRow[] = [];
   const bump = (rec: Record<string, number>, k: string) => (rec[k] = (rec[k] ?? 0) + 1);
 
   // --- people -------------------------------------------------------------
@@ -119,6 +139,7 @@ export async function merge(
     if (hit) {
       peopleIds.set(person.label, hit);
       memoryIds.push(hit);
+      placed.push({ id: hit, kind: "person", span_start: person.span_start });
       bump(matched, "people");
       continue;
     }
@@ -136,6 +157,7 @@ export async function merge(
     peopleIds.set(person.label, id);
     existingPeople.push({ id, text: person.label });
     memoryIds.push(id);
+    placed.push({ id, kind: "person", span_start: person.span_start });
     bump(created, "people");
   }
 
@@ -145,6 +167,7 @@ export async function merge(
     const hit = await resolve(place.label, existingPlaces, "place");
     if (hit) {
       memoryIds.push(hit);
+      placed.push({ id: hit, kind: "place", span_start: place.span_start });
       bump(matched, "places");
       continue;
     }
@@ -159,6 +182,7 @@ export async function merge(
     ]);
     existingPlaces.push({ id, text: place.label });
     memoryIds.push(id);
+    placed.push({ id, kind: "place", span_start: place.span_start });
     bump(created, "places");
   }
 
@@ -170,6 +194,7 @@ export async function merge(
     if (hit) {
       eventIds.set(event.what, hit);
       memoryIds.push(hit);
+      placed.push({ id: hit, kind: "event", span_start: event.span_start });
       bump(matched, "events");
       continue;
     }
@@ -190,6 +215,7 @@ export async function merge(
     eventIds.set(event.what, id);
     existingEvents.push({ id, text: event.what });
     memoryIds.push(id);
+    placed.push({ id, kind: "event", span_start: event.span_start });
     bump(created, "events");
   }
 
@@ -201,6 +227,7 @@ export async function merge(
     if (hit) {
       stanceIds.set(stance.statement, hit);
       memoryIds.push(hit);
+      placed.push({ id: hit, kind: "stance", span_start: stance.span_start });
       bump(matched, "stances");
       continue;
     }
@@ -212,12 +239,14 @@ export async function merge(
         origin_event_id: stance.origin_event
           ? eventIds.get(stance.origin_event)
           : undefined,
+        stated_at: statedAt,
         answer_id: answerId,
       },
     ]);
     stanceIds.set(stance.statement, id);
     existingStances.push({ id, text: stance.statement });
     memoryIds.push(id);
+    placed.push({ id, kind: "stance", span_start: stance.span_start });
     bump(created, "stances");
   }
 
@@ -228,6 +257,7 @@ export async function merge(
     if (!stanceId) continue; // a cost with no stance has nothing to attach to
     const hit = await resolve(cost.what_it_cost, existingCosts, "cost");
     if (hit) {
+      placed.push({ id: hit, kind: "cost", span_start: cost.span_start });
       bump(matched, "costs");
       continue;
     }
@@ -241,6 +271,7 @@ export async function merge(
     ]);
     existingCosts.push({ id, text: cost.what_it_cost });
     memoryIds.push(id);
+    placed.push({ id, kind: "cost", span_start: cost.span_start });
     bump(created, "costs");
   }
 
@@ -261,6 +292,7 @@ export async function merge(
         description: thread.description,
         first_seen_at: now,
         last_seen_at: now,
+        off_record: thread.off_record,
       },
     ]);
     existingThreads.push({ id, text: thread.label });
@@ -297,5 +329,5 @@ export async function merge(
     bump(created, "inferred");
   }
 
-  return { created, matched, peopleIds, memoryIds };
+  return { created, matched, peopleIds, memoryIds, placed };
 }

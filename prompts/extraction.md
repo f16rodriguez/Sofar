@@ -86,12 +86,19 @@ this is where careful reading goes to be useful later without contaminating the
 prose. Each carries a `kind`: "motive", "emotion", "chronology", "relationship",
 "other".
 
-## Skips and refusals
+## Off the record — absolute
 
-When the subject skipped a question or refused to answer, do not extract
-content for it. Record an `open_threads` entry noting the subject was asked and
-declined. What someone won't discuss is information; inventing what they might
-have said is not.
+When the subject declines — "skip", "pass", "not important", "I'd rather not",
+"off the record", "don't put that in", or rejects a question as bad — the thing
+declined is **not content, and the fact of declining is not content either.**
+
+Do not extract an event, stance, place, cost, quote, or inference from the
+exchange. Record exactly one `open_threads` entry with `off_record: true`,
+describing only the **topic** that was declined — never the wording of the
+refusal, never the subject's tone about it. That entry exists so the question
+is not asked again. It never reaches the book.
+
+Everything else in `open_threads` has `off_record: false`.
 
 ## Output
 

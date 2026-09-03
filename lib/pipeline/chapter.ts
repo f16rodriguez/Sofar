@@ -11,7 +11,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { complete, loadPrompt, MODELS, type ModelTier } from "../llm";
-import { ChapterSchema, type ChapterDraft } from "./schema";
+import { ChapterSchema, EntailmentSchema, type ChapterDraft } from "./schema";
 
 export interface Foundations {
   book_name: string | null;
@@ -53,7 +53,7 @@ export interface WriteChapterOptions {
 }
 
 export interface ValidationIssue {
-  rule: "citation" | "naming";
+  rule: "citation" | "naming" | "entailment";
   detail: string;
 }
 
@@ -129,6 +129,50 @@ export function validate(
   return issues;
 }
 
+/**
+ * Gate 3 — entailment. Citation proves a paragraph points at a row; it does
+ * not prove the paragraph says only what the row says. Draft one cited real
+ * rows and then wrote past them ("what he left out was any request…",
+ * "he skipped it"). This asks Sonnet, per paragraph, whether every claim is
+ * contained in the cited rows, and rejects the draft if any is not.
+ */
+async function checkEntailment(
+  draft: ChapterDraft,
+  sources: Map<string, string>,
+): Promise<ValidationIssue[]> {
+  const paragraphs = paragraphsOf(draft.body_md);
+  const blocks = paragraphs.map((text, i) => {
+    const cited = (draft.paragraph_sources[i] ?? [])
+      .map((id) => sources.get(id))
+      .filter((t): t is string => !!t);
+    return [
+      `PARAGRAPH ${i}`,
+      text,
+      "",
+      "CITED ROWS",
+      cited.length ? cited.map((t) => `- ${t}`).join("\n") : "- (none)",
+    ].join("\n");
+  });
+
+  const verdict = await complete({
+    task: "entailment",
+    system: loadPrompt("entailment"),
+    prompt: blocks.join("\n\n---\n\n"),
+    schema: EntailmentSchema,
+    effort: "medium",
+    maxTokens: 6000,
+  });
+
+  return verdict.paragraphs
+    .filter((p) => !p.supported)
+    .map((p) => ({
+      rule: "entailment" as const,
+      detail:
+        `paragraph ${p.index + 1} says what its sources do not: ` +
+        p.unsupported_claims.map((c) => `"${c}"`).join(" | "),
+    }));
+}
+
 function describePeople(people: PersonRow[]): string {
   return people
     .map((p) => {
@@ -152,6 +196,15 @@ export async function writeChapter(
   ]);
   const maxAttempts = opts.maxAttempts ?? 3;
   const rejected: ValidationIssue[][] = [];
+
+  // id → the text the entailment gate will hold each paragraph to.
+  const sources = new Map<string, string>();
+  for (const r of opts.rows) sources.set(r.id, `(${r.kind}) ${r.text}`);
+  for (const p of opts.people) {
+    const name = p.may_name_in_prose ? p.label : (p.prose_reference ?? p.label);
+    const quotes = p.quotes.length ? ` Said: ${p.quotes.map((q) => `"${q}"`).join("; ")}` : "";
+    sources.set(p.id, `(person) ${name} — ${p.relationship ?? "unstated"}.${quotes}`);
+  }
 
   const rowsBlock = opts.rows
     .map((r) => `- [${r.id}] (${r.kind}) ${r.text}`)
@@ -177,8 +230,9 @@ export async function writeChapter(
             "YOUR PREVIOUS ATTEMPT WAS REJECTED:",
             ...rejected[rejected.length - 1].map((i) => `- ${i.rule}: ${i.detail}`),
             "",
-            "Fix these. Cite a real row id for every paragraph, and never name",
-            "a person whose row forbids it.",
+            "Fix these. Cite a real row id for every paragraph; never name a",
+            "person whose row forbids it; and say nothing a cited row does not",
+            "say — cut the claim rather than soften it.",
           ].join("\n")
         : "";
 
@@ -191,7 +245,10 @@ export async function writeChapter(
       maxTokens: 32000,
     });
 
-    const issues = validate(draft, allowedIds, opts.people);
+    let issues = validate(draft, allowedIds, opts.people);
+    if (issues.length === 0) {
+      issues = await checkEntailment(draft, sources);
+    }
     if (issues.length === 0) {
       return {
         draft: { ...draft, source_memory_ids: [...new Set(draft.paragraph_sources.flat())] },

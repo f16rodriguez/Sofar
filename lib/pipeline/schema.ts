@@ -67,6 +67,8 @@ export const CostSchema = z.object({
 export const ThreadSchema = z.object({
   label: z.string(),
   description: z.string(),
+  // Finding 6: the subject declined this. Never reaches prose.
+  off_record: z.boolean(),
   ...sourced,
 });
 
@@ -117,4 +119,15 @@ export type ChapterDraft = z.infer<typeof ChapterSchema>;
 export const SameEntitySchema = z.object({
   same: z.boolean(),
   reason: z.string(),
+});
+
+// Entailment gate: does each paragraph say only what its cited rows say?
+export const EntailmentSchema = z.object({
+  paragraphs: z.array(
+    z.object({
+      index: z.number().int(),
+      supported: z.boolean(),
+      unsupported_claims: z.array(z.string()),
+    }),
+  ),
 });

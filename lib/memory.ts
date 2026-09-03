@@ -73,6 +73,8 @@ export interface NewThread {
   description?: string;
   first_seen_at?: string;
   last_seen_at?: string;
+  /** The subject declined this topic (Finding 6). Never reaches prose. */
+  off_record?: boolean;
 }
 
 export interface NewUnsaid {

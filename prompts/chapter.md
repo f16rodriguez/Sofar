@@ -35,6 +35,14 @@ you: a wrong name is invisible to every reader except the one who knows, and it
 tells that person the book is fiction. A sentence that reads slightly worse
 without a name is the correct sentence.
 
+## Off the record — absolute
+
+Anything the person declined to discuss is not in your rows, and the fact
+that they declined is not in your rows either. Never write that they skipped,
+refused, would not say, dismissed, or rejected a question. A book that reports
+its subject's silences is an interrogation transcript. If a scene has a gap
+where a refusal was, write around it as though the question was never asked.
+
 ## Craft
 
 **Open in a specific scene.** A time, a place, a person doing something. Never

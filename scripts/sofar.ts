@@ -28,21 +28,29 @@ try {
 }
 
 // phase0 §5 — the three chapters of session one, and how each opens and closes.
+// Each names the transcript blocks it is built from (SPEC §5.4: rows selected
+// by cluster). Draft one passed every row to every chapter and got one
+// chapter written three times.
 const OUTLINES = [
   {
     kind: "prologue" as const,
     number: 0,
+    blocks: ["1"],
     outline: [
       "PROLOGUE — Now. Built from what the subject said about the present:",
       "yesterday, the thought they keep circling, who they talk to.",
       "Open in scene: a real moment from yesterday, a real time, a real place.",
       "Establish the narrator's voice and the thought they cannot put down.",
-      "End on the thing they skipped or would not say.",
+      "End on a gap in the subject's own account of yesterday — a thing they",
+      "said they left out — if the record holds one. Otherwise end on the",
+      "thought they keep circling, left open. Never end on a refusal: refusals",
+      "are not in the record and must not be written.",
     ].join("\n"),
   },
   {
     kind: "chapter" as const,
     number: 1,
+    blocks: ["2"],
     outline: [
       "CHAPTER I — The decision. Built from the most recent turning point.",
       "Open on the moment of deciding, not the backstory that led to it.",
@@ -53,6 +61,9 @@ const OUTLINES = [
   {
     kind: "chapter" as const,
     number: 2,
+    // Blocks 3 and 4, plus the foundations pass: the cities and why he left
+    // each are the backward pull, which is this chapter's job.
+    blocks: ["3", "4", "foundations"],
     outline: [
       "CHAPTER II — What he knows. Built from the certainties and what came",
       "before them. Open on the certainty itself, in the subject's own phrasing.",
@@ -62,6 +73,26 @@ const OUTLINES = [
     ].join("\n"),
   },
 ];
+
+/** Where each transcript block begins, from its === marker. */
+function blockBoundaries(transcript: string): { block: string; start: number }[] {
+  const out: { block: string; start: number }[] = [];
+  const re = /^=== (?:BLOCK (\d)|(FOUNDATIONS) PASS)/gm;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(transcript))) {
+    out.push({ block: m[1] ?? "foundations", start: m.index });
+  }
+  return out;
+}
+
+function blockOf(bounds: { block: string; start: number }[], offset: number): string {
+  let current = "0";
+  for (const b of bounds) {
+    if (offset >= b.start) current = b.block;
+    else break;
+  }
+  return current;
+}
 
 function arg(name: string): string | undefined {
   const i = process.argv.indexOf(`--${name}`);
@@ -150,10 +181,12 @@ async function run() {
   console.log(`  matched existing: ${JSON.stringify(merged.matched)}`);
 
   // --- gather the memory layer for the writer -----------------------------
-  // M1 passes the whole memory layer to each chapter and lets the outline
-  // select. Clustering by thread/event (SPEC §5.4) matters once the layer
-  // outgrows one transcript; with a single onboarding session it would only
-  // hide rows the chapter legitimately needs.
+  // Only rows this transcript produced or matched, each tagged with the block
+  // it came from. People are entities, not scenes, and go to every chapter.
+  const bounds = blockBoundaries(transcript);
+  const blockById = new Map<string, string>();
+  for (const r of merged.placed) blockById.set(r.id, blockOf(bounds, r.span_start));
+
   const [people, places, events, stances, costs, voiceRow] = await Promise.all([
     db.from("memory_people").select("*").eq("user_id", userId),
     db.from("memory_places").select("*").eq("user_id", userId),
@@ -198,14 +231,18 @@ async function run() {
       text: r.what_it_cost,
     })),
   ];
-  console.log(`memory layer: ${rows.length} rows + ${personRows.length} people`);
+  const placedRows = rows.filter((r) => blockById.has(r.id));
+  console.log(`memory layer: ${placedRows.length} rows + ${personRows.length} people`);
 
   // --- chapters (Opus, no exceptions — phase0 §5) -------------------------
   for (const spec of OUTLINES) {
-    console.log(`writing ${spec.kind} ${spec.number}…`);
+    const chapterRows = placedRows.filter((r) =>
+      spec.blocks.includes(blockById.get(r.id) ?? ""),
+    );
+    console.log(`writing ${spec.kind} ${spec.number}… (${chapterRows.length} rows from block ${spec.blocks.join("+")})`);
     const result = await writeChapter({
       outline: spec.outline,
-      rows,
+      rows: chapterRows,
       people: personRows,
       foundations,
       voice: (voiceRow.data?.profile as Record<string, unknown>) ?? {},

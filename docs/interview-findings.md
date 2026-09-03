@@ -122,3 +122,49 @@ produced one word: "basketball."
 
 That is the case for Finding 1, measured rather than argued. The subject was
 right, and the gap is in the script, not in how it was run.
+
+---
+
+## Finding 6 — a refusal is not content, and neither is the fact of refusing
+
+**Founder-raised on reading draft one. Structural. Blocks the chapter writer.**
+
+Draft one closed the prologue on the subject's own refusal — "This is really
+not an important thing to talk about. Skip." — and the pipeline's version
+wrote "Asked about the earliest thing he can remember, he skipped it."
+
+The founder's rule: when a subject says skip, pass, off the record, don't put
+that in — the thing declined is not content, **and the fact that it was
+declined is not content either.** A book that reports its subject's silences
+is an interrogation transcript.
+
+### Two words that read alike and mean opposite things
+
+The Prologue outline in phase0 §5 says "Ends on the thing they skipped." In
+the Q1 follow-up, "what part of yesterday did you skip just now" means an
+**omission** — something glossed over in the account, which the interviewer
+draws out and which is excellent material. "Skip" as an answer is a
+**refusal** — off the record. The outline was read as the second; it meant the
+first. Worth disambiguating in the source document.
+
+### How it leaked
+
+Not through data. Extraction correctly isolated all five refusals as threads,
+and threads are not passed to the writer. The pipeline's outline instructed
+the model to end on a skip, and with no such row it wrote one. Same class of
+defect as the fabricated "what he left out" passage in Chapter I: prose
+exceeding its sources, with a real citation attached.
+
+### Fix
+
+- `memory_threads.off_record` (migration 0006). Extraction sets it; the row
+  records only the declined topic, never the refusal's wording. Visible to
+  the question generator so the topic is not raised again; never passed to
+  the chapter writer or the So far generator.
+- Chapter prompt and extraction prompt carry the rule explicitly.
+- The Prologue outline no longer asks for a skip.
+- **The entailment gate** (`prompts/entailment.md`): after citation and naming
+  pass, each paragraph is checked against the text of the rows it cites, and
+  a paragraph that says more than its sources is rejected and regenerated.
+  This is the general fix — it catches refusal reports, fabricated passages,
+  hedges, and interpretation-as-observation, all of which draft one contained.
