@@ -35,7 +35,10 @@ export interface Foundations {
 export interface MemoryRow {
   id: string;
   kind: string;
+  /** The extracted summary — what this row is. */
   text: string;
+  /** The person's own words this row came from — the writer's material. */
+  quote?: string;
 }
 
 export interface PersonRow {
@@ -336,15 +339,27 @@ export async function writeChapter(
 
   // id → the text the entailment gate will hold each paragraph to.
   const sources = new Map<string, string>();
-  for (const r of opts.rows) sources.set(r.id, `(${r.kind}) ${r.text}`);
+  for (const r of opts.rows) {
+    sources.set(
+      r.id,
+      r.quote
+        ? `(${r.kind}) ${r.text} | HIS WORDS: "${r.quote.replace(/\s+/g, " ").trim()}"`
+        : `(${r.kind}) ${r.text}`,
+    );
+  }
   for (const p of opts.people) {
     const name = p.may_name_in_prose ? p.label : (p.prose_reference ?? p.label);
     const quotes = p.quotes.length ? ` Said: ${p.quotes.map((q) => `"${q}"`).join("; ")}` : "";
     sources.set(p.id, `(person) ${name} — ${p.relationship ?? "unstated"}.${quotes}`);
   }
 
+  // The quote is the material. The summary only says which row it is.
   const rowsBlock = opts.rows
-    .map((r) => `- [${r.id}] (${r.kind}) ${r.text}`)
+    .map((r) =>
+      r.quote
+        ? `- [${r.id}] (${r.kind}) ${r.text}\n      HIS WORDS: "${r.quote.replace(/\s+/g, " ").trim()}"`
+        : `- [${r.id}] (${r.kind}) ${r.text}`,
+    )
     .join("\n");
 
   const base = [

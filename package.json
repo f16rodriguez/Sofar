@@ -8,7 +8,9 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "accept:m0": "tsx scripts/m0-accept.ts",
-    "sofar": "tsx scripts/sofar.ts"
+    "sofar": "tsx scripts/sofar.ts",
+    "interview": "tsx scripts/interview.ts",
+    "test:machine": "tsx scripts/test-machine.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.123.0",

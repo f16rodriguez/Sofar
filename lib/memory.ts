@@ -16,6 +16,8 @@ async function insertRows(
 }
 
 export interface NewPerson {
+  /** The exact words this row came from (Finding 7). */
+  source_quote?: string;
   user_id: string;
   label: string;
   relationship?: string;
@@ -29,6 +31,8 @@ export interface NewPerson {
 }
 
 export interface NewPlace {
+  /** The exact words this row came from (Finding 7). */
+  source_quote?: string;
   user_id: string;
   label: string;
   when_text?: string;
@@ -37,6 +41,8 @@ export interface NewPlace {
 }
 
 export interface NewEvent {
+  /** The exact words this row came from (Finding 7). */
+  source_quote?: string;
   user_id: string;
   what: string;
   when_text?: string;
@@ -51,6 +57,8 @@ export interface NewEvent {
 }
 
 export interface NewStance {
+  /** The exact words this row came from (Finding 7). */
+  source_quote?: string;
   user_id: string;
   statement: string;
   rationale?: string;
@@ -61,6 +69,8 @@ export interface NewStance {
 }
 
 export interface NewCost {
+  /** The exact words this row came from (Finding 7). */
+  source_quote?: string;
   user_id: string;
   stance_id: string;
   what_it_cost: string;
@@ -68,6 +78,8 @@ export interface NewCost {
 }
 
 export interface NewThread {
+  /** The exact words this row came from (Finding 7). */
+  source_quote?: string;
   user_id: string;
   label: string;
   description?: string;

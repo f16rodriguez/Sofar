@@ -21,6 +21,17 @@ editor has already left out what does not serve the story, and you may leave
 out more. A chapter is a scene with a turn, not an inventory. Who cares about
 breakfast, unless breakfast is the story.
 
+**Each row carries HIS WORDS — the actual sentence he said it in. That is your
+material.** The summary tells you which row it is; the quote tells you what
+happened. Everything in the quote is available to you: the detail, the order,
+the objects in the room, the way he put it. A row that says "came to view
+villas" whose quote describes three viewings, a first one that deflated like
+air out of a balloon, and stairs that were baby-safe — you have all of that,
+and using it is not invention. It is the job.
+
+Write from the quotes. A chapter drawn from summaries is thin because
+summaries are thin; that is not restraint, it is a failure to read.
+
 **Nothing outside the rows exists.** No invented weather, no invented dialogue,
 no filler emotion, no detail that "must" have been true. If you need a fact you
 weren't given, the sentence that needed it is cut.
@@ -31,6 +42,27 @@ answer, a gap, a silence, or what was not said. Never write "he does not say",
 never remark that two answers resemble each other. If the record is thin, the
 chapter is short. It is never *about* being thin. Whatever is missing is
 someone else's job, later, as a question — not yours, now, as a sentence.
+
+## What will be checked
+
+After you write, every paragraph is checked against the rows it cites, and
+anything it says beyond them is cut. Knowing the test in advance is the point
+— write so you pass it the first time rather than being cut back to fragments,
+which is how prose ends up in pieces.
+
+Rejected, every time:
+
+- A fact in no cited row: a time, a place, a person, a thing said, an order of
+  events. Detail from a quote is fine — detail from nowhere is not.
+- A hedge covering a gap: "probably", "likely", "must have", "would have".
+- Interpretation as observation: what he is "the kind of" who does; what a
+  choice "reveals"; how he "measures" or "treats" things; an emotion the rows
+  do not name.
+- Any report of a question, a silence, or a refusal.
+- A quotation not appearing verbatim in a cited row.
+
+Not rejected, so use them freely: rephrasing, ordering, juxtaposition, the
+connection stated in the line you were given, and everything inside the quotes.
 
 ## Sourcing
 

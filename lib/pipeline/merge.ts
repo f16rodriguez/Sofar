@@ -150,6 +150,7 @@ export async function merge(
         relationship: person.relationship ?? undefined,
         first_answer_id: answerId,
         quotes: person.quotes,
+        source_quote: person.source_quote,
         may_name_in_prose: person.may_name_in_prose,
         prose_reference: person.prose_reference ?? undefined,
       },
@@ -177,6 +178,7 @@ export async function merge(
         label: place.label,
         when_text: place.when_text ?? undefined,
         what_happened: place.what_happened ?? undefined,
+        source_quote: place.source_quote,
         answer_id: answerId,
       },
     ]);
@@ -210,6 +212,7 @@ export async function merge(
         answer_id: answerId,
         span_start: event.span_start,
         span_end: event.span_end,
+        source_quote: event.source_quote,
       },
     ]);
     eventIds.set(event.what, id);
@@ -236,6 +239,7 @@ export async function merge(
         user_id: userId,
         statement: stance.statement,
         rationale: stance.rationale ?? undefined,
+        source_quote: stance.source_quote,
         origin_event_id: stance.origin_event
           ? eventIds.get(stance.origin_event)
           : undefined,
@@ -266,6 +270,7 @@ export async function merge(
         user_id: userId,
         stance_id: stanceId,
         what_it_cost: cost.what_it_cost,
+        source_quote: cost.source_quote,
         answer_id: answerId,
       },
     ]);
@@ -290,6 +295,7 @@ export async function merge(
         user_id: userId,
         label: thread.label,
         description: thread.description,
+        source_quote: thread.source_quote,
         first_seen_at: now,
         last_seen_at: now,
         off_record: thread.off_record,

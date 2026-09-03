@@ -103,6 +103,46 @@ function locate(
   };
 }
 
+// Keyboard slips a typing person made and never said: "aND" for "and". The
+// extraction prompt cannot fix these — it is simultaneously told to copy
+// verbatim, and verbatim wins. So it is done here, narrowly: a word whose
+// capitalisation is anomalous AND whose lowercase form is an ordinary word.
+// "aND" is corrected; "iPhone", "COO", "DR", "PS" are not.
+const ORDINARY = new Set(
+  ("and the but that this with from they them was were have has had not you your for are its what when where which who how why all can will would could should been being there their then than into out about just because some more most one two first last next time day year like really very still what's don't didn't").split(" "),
+);
+
+function fixKeyboardSlips(text: string): string {
+  return text.replace(/\b[A-Za-z']{2,}\b/g, (word) => {
+    const lower = word.toLowerCase();
+    if (word === lower || word === word.toUpperCase()) return word;
+    if (word[0] === word[0].toUpperCase() && word.slice(1) === word.slice(1).toLowerCase()) {
+      return word; // ordinary Title Case
+    }
+    return ORDINARY.has(lower) ? lower : word;
+  });
+}
+
+/**
+ * Every human-readable field, cleaned of slips the person never spoke.
+ * Exported because cached extractions must be cleaned on load as well —
+ * otherwise the cache faithfully replays yesterday's typos.
+ */
+export function clean<T>(value: T): T {
+  if (typeof value === "string") return fixKeyboardSlips(value) as unknown as T;
+  if (Array.isArray(value)) return value.map(clean) as unknown as T;
+  if (value && typeof value === "object") {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value)) {
+      // source_quote is evidence and is matched against the transcript
+      // verbatim; correcting it would break the provenance check.
+      out[k] = k === "source_quote" ? v : clean(v);
+    }
+    return out as T;
+  }
+  return value;
+}
+
 // --- the three passes -------------------------------------------------------
 
 const PeoplePlacesSchema = z.object({
@@ -197,7 +237,7 @@ export async function extract(opts: ExtractOptions): Promise<ExtractResult> {
     return kept;
   };
 
-  const extraction: Extraction = {
+  const extraction: Extraction = clean({
     people: place(peoplePlaces.people, "person", (p) => p.label),
     places: place(peoplePlaces.places, "place", (p) => p.label),
     events: place(happenings.events, "event", (e) => e.what),
@@ -207,7 +247,7 @@ export async function extract(opts: ExtractOptions): Promise<ExtractResult> {
     voice: residue.voice,
     unsaid: place(residue.unsaid, "unsaid", (u) => u.text),
     inferred: place(residue.inferred, "inferred", (i) => i.content),
-  };
+  });
 
   return { extraction, dropped };
 }

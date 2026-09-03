@@ -14,7 +14,7 @@ import crypto from "node:crypto";
 import { serviceClient } from "../lib/supabase";
 import { usage, loadPrompt } from "../lib/llm";
 import { createAnswer } from "../lib/repo";
-import { extract } from "../lib/pipeline/extract";
+import { extract, clean } from "../lib/pipeline/extract";
 import { merge } from "../lib/pipeline/merge";
 import * as memory from "../lib/memory";
 import {
@@ -150,7 +150,7 @@ async function run() {
   let dropped: Awaited<ReturnType<typeof extract>>["dropped"];
 
   if (!process.argv.includes("--no-cache") && fs.existsSync(cacheFile)) {
-    ({ extraction, dropped } = JSON.parse(fs.readFileSync(cacheFile, "utf8")));
+    ({ extraction, dropped } = clean(JSON.parse(fs.readFileSync(cacheFile, "utf8"))));
     console.log(`extraction: cached (${cacheFile})`);
   } else {
     console.log("extracting…");
@@ -217,6 +217,7 @@ async function run() {
       id: r.id,
       kind: "place",
       text: [r.label, r.when_text, r.what_happened].filter(Boolean).join(" — "),
+      quote: r.source_quote ?? undefined,
     })),
     ...(events.data ?? []).map((r) => ({
       id: r.id,
@@ -224,16 +225,19 @@ async function run() {
       text: [r.what, r.when_text, r.where_text, r.outcome]
         .filter(Boolean)
         .join(" — "),
+      quote: r.source_quote ?? undefined,
     })),
     ...(stances.data ?? []).map((r) => ({
       id: r.id,
       kind: "stance",
       text: [r.statement, r.rationale].filter(Boolean).join(" — because "),
+      quote: r.source_quote ?? undefined,
     })),
     ...(costs.data ?? []).map((r) => ({
       id: r.id,
       kind: "cost",
       text: r.what_it_cost,
+      quote: r.source_quote ?? undefined,
     })),
   ];
   const placedRows = rows.filter((r) => placedIds.has(r.id));
