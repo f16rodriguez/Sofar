@@ -33,6 +33,12 @@ You are checking containment: prose ⊆ sources.
 - Facts from the FOUNDATIONS block: age, pronoun, cities, household,
   occupation, family of origin. These are given to the writer and count as
   sources for every paragraph.
+- **The editor's line** ("THIS CHAPTER IS ABOUT"). It states a connection
+  between facts — the belief, applied; the friend who is also the colleague
+  — and that connection is sanctioned. Prose that states it, restates it, or
+  arranges the facts to show it is supported. It sanctions the *connection*,
+  not new facts: "the belief, applied to the editor" is supported; "he tested
+  it on the editor" adds intent and is not.
 
 - Rephrasing. Rows are notes; prose is prose. "He got gas for the first time
   here" supports "his first tank in the new country."

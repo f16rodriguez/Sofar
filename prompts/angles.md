@@ -25,10 +25,21 @@ to follow each other in time are not an angle. A list is not an angle.
 
 Decide whether it can be written **now**, from what is in the record.
 
-Writable means it holds a scene (a moment with a time or place and a person in
-it), something someone said, and a turn — a decision, a change, a
-contradiction, or an open question to end on. If it holds all three, it is a
-chapter. If it does not, it is a question.
+Writable means it holds a scene, something someone said, and a turn. All
+three, and the bar for each is high:
+
+- **A scene** is a moment you could write a full paragraph of from the rows
+  alone — where, who was there, what happened in it, in order. "In July they
+  viewed villas" is a *fact about* a scene, not a scene. If the rows hold only
+  the fact, the scene is missing, and the angle is a question.
+- **Something said** — actual words, quotable, from the rows.
+- **A turn** — a decision, a change, a contradiction, or an open question the
+  chapter ends on. A day's events in sequence are not a turn. If the only
+  available ending is "that was the day," there is no turn.
+
+If it holds all three, it is a chapter. If it does not, it is a question.
+Marking a thin angle writable produces a thin chapter, which is the failure
+this pass exists to prevent.
 
 For an angle that is not yet writable, name **what is missing** — the fact
 that would make it a chapter — and write **the one question that would get it**,
@@ -59,6 +70,10 @@ slot is correct when nothing writable fits it.
 ## Rules
 
 - Rows the person declined are not in front of you and do not exist.
+- You may be given DECLINED TOPICS — things the person chose not to discuss.
+  Never write an `ask` about one. An angle whose missing piece is a declined
+  topic is not writable, and its `ask` is null. What someone will not discuss
+  is theirs to bring back, not ours to request again.
 - Do not invent a connection. The rows must actually intersect; if you are
   supplying the link, it is a question, not an angle.
 - Prefer fewer, sharper angles. Three good ones beat eight.

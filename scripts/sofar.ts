@@ -243,8 +243,14 @@ async function run() {
   // Where do the facts intersect? Each angle is writable now or names what is
   // missing and the one question that would get it. Unwritable angles go to
   // memory_threads, which the daily question generator reads (SPEC §5.6).
-  console.log("finding angles…");
-  const angles = await findAngles({ rows: placedRows, people: personRows, foundations });
+  const { data: declinedRows } = await db
+    .from("memory_threads")
+    .select("label")
+    .eq("user_id", userId)
+    .eq("off_record", true);
+  const declined = (declinedRows ?? []).map((t: { label: string }) => t.label);
+  console.log(`finding angles… (${declined.length} declined topic(s) withheld)`);
+  const angles = await findAngles({ rows: placedRows, people: personRows, foundations, declined });
   const writable = angles.filter((a) => a.writable && a.rows.length > 0);
   const open = angles.filter((a) => !a.writable);
   console.log(`  ${angles.length} angle(s): ${writable.length} writable, ${open.length} need more`);

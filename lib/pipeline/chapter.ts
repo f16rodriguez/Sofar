@@ -58,6 +58,8 @@ export async function findAngles(opts: {
   rows: MemoryRow[];
   people: PersonRow[];
   foundations: Foundations;
+  /** Topics the person declined (off_record threads). Never asked about again. */
+  declined: string[];
 }): Promise<Angle[]> {
   const verdict = await complete({
     task: "angles",
@@ -66,6 +68,8 @@ export async function findAngles(opts: {
       `FOUNDATIONS\n${JSON.stringify(opts.foundations)}`,
       "",
       `PEOPLE\n${describePeople(opts.people)}`,
+      "",
+      `DECLINED TOPICS — never build an ask around these\n${opts.declined.length ? opts.declined.map((d) => `- ${d}`).join("\n") : "- (none)"}`,
       "",
       `ROWS — the whole record\n${opts.rows.map((r) => `- [${r.id}] (${r.kind}) ${r.text}`).join("\n")}`,
     ].join("\n"),
@@ -185,6 +189,7 @@ async function checkEntailment(
   draft: ChapterDraft,
   sources: Map<string, string>,
   foundations: Foundations,
+  story: string,
 ): Promise<ValidationIssue[]> {
   const paragraphs = paragraphsOf(draft.body_md);
   const blocks = paragraphs.map((text, i) => {
@@ -204,6 +209,9 @@ async function checkEntailment(
     task: "entailment",
     system: loadPrompt("entailment"),
     prompt: [
+      "THIS CHAPTER IS ABOUT — the editor's line; its connection is sanctioned",
+      story,
+      "",
       "FOUNDATIONS — available to every paragraph as a source",
       JSON.stringify(foundations),
       "",
@@ -303,7 +311,9 @@ export async function writeChapter(
     ...opts.rows.map((r) => r.id),
     ...opts.people.map((p) => p.id),
   ]);
-  const maxAttempts = opts.maxAttempts ?? 4; // 1 generation + 3 repairs
+  // 1 generation + 2 repairs, then mechanical excision. Each Opus repair is
+  // real money and the third rarely fixed what the second could not.
+  const maxAttempts = opts.maxAttempts ?? 3;
   const rejected: ValidationIssue[][] = [];
 
   // id → the text the entailment gate will hold each paragraph to.
@@ -373,7 +383,7 @@ export async function writeChapter(
 
     let issues = validate(draft, allowedIds, opts.people);
     if (issues.length === 0) {
-      issues = await checkEntailment(draft, sources, opts.foundations);
+      issues = await checkEntailment(draft, sources, opts.foundations, opts.story);
     }
     if (issues.length === 0) {
       return {
@@ -394,7 +404,7 @@ export async function writeChapter(
     const cut = excise(draft, last);
     const recheck = [
       ...validate(cut, allowedIds, opts.people),
-      ...(await checkEntailment(cut, sources, opts.foundations)),
+      ...(await checkEntailment(cut, sources, opts.foundations, opts.story)),
     ];
     if (recheck.length === 0) {
       return {
