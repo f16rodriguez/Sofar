@@ -17,8 +17,9 @@ structured memory from transcripts and writes a book that revises itself.
 | Milestone | State |
 |---|---|
 | M0 — repo & infrastructure | **PASSED** — acceptance 7/7 against live infrastructure |
-| M1 — pipeline CLI | **Mechanically passed** on the founder's interview: every paragraph traces to a transcript quote (enforced), reruns create no duplicate rows, three chapters generated at ~$0.46/run. Prose is honest and short — 780 words from a terse 20 minutes. Length is bounded by the interview, not the writer (`docs/interview-findings.md`) |
-| M2–M7 | Not started |
+| M1 — pipeline CLI | **PASSED.** Every paragraph traces to a transcript quote (enforced in code), reruns create no duplicate rows, three chapters generated, founder named the wrong sentences. Prose ceiling on the founder's transcript is the transcript; see `docs/product-decisions.md` D1–D4 |
+| M2 — interview engine | Next. Design changed by D4: depth over breadth, the editor's ask as the live follow-up. Script revision is founder-owned |
+| M3–M7 | Not started |
 
 ## Provisioned infrastructure
 

@@ -166,3 +166,25 @@ was to make the person want the next one.
 
 **Owner:** interview design is founder-owned. This records the principle; the
 script change is theirs.
+
+## D5 — Runs cost money; every run states what it is for (founder, 2026-09-03)
+
+"I am saying run for what? I'm not providing more credits to figure this out.
+Figure it out with what we have."
+
+Seven pipeline runs on one transcript in a day, $4.50; the last three were
+verifying prompt changes. That is a tuning loop on founder credits, and it
+stops.
+
+**Rules:**
+
+- A paid run states its purpose and its expected cost before it happens.
+  "To check my work" is not a purpose.
+- No run on a transcript whose ceiling has been reached. The founder
+  transcript's ceiling is the transcript; further runs on it buy nothing.
+- Prompt changes are reasoned and committed, and validated on the next run
+  that exists for another reason — new input — never on a run of their own.
+- Extraction is cached per transcript and prompt version. A rerun for chapters
+  costs chapters only.
+- Reference: a full first-session run on cached extraction is ~$0.40–0.60.
+  Budget remaining at time of writing: ~$15.50.
