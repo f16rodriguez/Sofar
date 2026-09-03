@@ -14,20 +14,24 @@ structured memory from transcripts and writes a book that revises itself.
 
 | Milestone | State |
 |---|---|
-| M0 — repo & infrastructure | Code complete; acceptance blocked on provisioning (below) |
+| M0 — repo & infrastructure | Provisioned & schema live; RLS verified on the real DB. Full acceptance run pending STT/LLM keys |
 | M1–M7 | Not started (M1 next, after M0 accepts) |
+
+## Provisioned infrastructure
+
+- **Supabase project**: `Sofar` (`onfxavpzvdazocvandeh`, us-east-1) —
+  `https://onfxavpzvdazocvandeh.supabase.co`. Migrations 0001–0003 applied;
+  security advisors clean; two-user RLS test passed against the live DB
+  (cross-user reads return 0 rows, forged inserts rejected by policy).
 
 ## Setup
 
-1. **Supabase project** — create one, then apply
-   `supabase/migrations/0001_init.sql` (via `supabase db push` with the CLI
-   linked, or the SQL editor). It creates the full schema, RLS on every
-   table, the pgvector indexes, and the private `answer-audio` bucket.
-2. **Env** — copy `.env.example` to `.env.local` and fill the M0 section
-   (Supabase URL + anon key + service role key, `ANTHROPIC_API_KEY`,
-   `DEEPGRAM_API_KEY`).
-3. **Install & check** — `npm install`, `npm run typecheck`, `npm run build`.
-4. **M0 acceptance** — `npm run accept:m0`. It creates two throwaway users,
+1. **Env** — copy `.env.example` to `.env.local`. URL and anon key come from
+   the project above; the service role key from the dashboard
+   (Settings → API — server-side only, never in the browser). Add
+   `ANTHROPIC_API_KEY` and `DEEPGRAM_API_KEY`.
+2. **Install & check** — `npm install`, `npm run typecheck`, `npm run build`.
+3. **M0 acceptance** — `npm run accept:m0`. It creates two throwaway users,
    proves user B cannot read user A's answer, and round-trips the STT and
    LLM wrappers. All checks must pass before M1 starts.
 
