@@ -270,11 +270,14 @@ async function run() {
       foundations,
       voice: (voiceRow.data?.profile as Record<string, unknown>) ?? {},
       model: "opus",
+      onAttempt: (attempt, issues) => {
+        console.log(`  attempt ${attempt} rejected — ${issues.length} issue(s)`);
+        for (const i of issues) console.log(`    - ${i.detail}`);
+      },
     });
 
-    for (const attempt of result.rejected) {
-      console.log(`  attempt rejected: ${attempt.map((i) => i.rule).join(", ")}`);
-      for (const issue of attempt) console.log(`    - ${issue.detail}`);
+    if (result.excised) {
+      console.log("  ⚠ model repairs exhausted; rejected sentences cut mechanically");
     }
 
     const words = result.draft.body_md.split(/\s+/).filter(Boolean).length;

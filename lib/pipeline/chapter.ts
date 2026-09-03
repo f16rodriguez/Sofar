@@ -50,11 +50,16 @@ export interface WriteChapterOptions {
   /** Opus for the first three chapters (SPEC §5.4, phase0 §5). */
   model?: ModelTier;
   maxAttempts?: number;
+  /** Called after each rejected attempt, so a failing run is diagnosable. */
+  onAttempt?: (attempt: number, issues: ValidationIssue[]) => void;
 }
 
 export interface ValidationIssue {
   rule: "citation" | "naming" | "entailment";
   detail: string;
+  /** Entailment only: which paragraph (0-based) and the offending claims, verbatim. */
+  paragraph?: number;
+  claims?: string[];
 }
 
 export interface WriteChapterResult {
@@ -63,6 +68,8 @@ export interface WriteChapterResult {
   attempts: number;
   /** Issues from rejected attempts, kept so failures are visible. */
   rejected: ValidationIssue[][];
+  /** True if the final draft was produced by mechanical excision. */
+  excised: boolean;
 }
 
 export function paragraphsOf(bodyMd: string): string[] {
@@ -178,7 +185,61 @@ async function checkEntailment(
       detail:
         `paragraph ${p.index + 1} says what its sources do not: ` +
         p.unsupported_claims.map((c) => `"${c}"`).join(" | "),
+      paragraph: p.index,
+      claims: p.unsupported_claims,
     }));
+}
+
+function sentencesOf(paragraph: string): string[] {
+  const parts = paragraph.match(/[^.!?]+(?:[.!?]+["”’)\]]*)?/g) ?? [paragraph];
+  return parts.map((x) => x.trim()).filter(Boolean);
+}
+
+function wordOverlap(sentence: string, claim: string): number {
+  const words = (t: string) =>
+    new Set(t.toLowerCase().replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter((w) => w.length > 3));
+  const c = words(claim);
+  if (c.size === 0) return 0;
+  const sWords = words(sentence);
+  let hit = 0;
+  for (const w of c) if (sWords.has(w)) hit++;
+  return hit / c.size;
+}
+
+/**
+ * Last resort after the model's repairs are exhausted: remove every sentence
+ * that carries a rejected claim, mechanically. The model keeps rephrasing a
+ * synthesis it is proud of; code does not. A choppier paragraph that says
+ * nothing false is the correct result — the prose rules say so.
+ */
+export function excise(draft: ChapterDraft, issues: ValidationIssue[]): ChapterDraft {
+  const claimsByParagraph = new Map<number, string[]>();
+  for (const i of issues) {
+    if (i.rule !== "entailment" || i.paragraph === undefined) continue;
+    claimsByParagraph.set(i.paragraph, [
+      ...(claimsByParagraph.get(i.paragraph) ?? []),
+      ...(i.claims ?? []),
+    ]);
+  }
+
+  const paragraphs = paragraphsOf(draft.body_md);
+  const body: string[] = [];
+  const sources: string[][] = [];
+  paragraphs.forEach((p, idx) => {
+    const claims = claimsByParagraph.get(idx);
+    let text = p;
+    if (claims && claims.length > 0) {
+      text = sentencesOf(p)
+        .filter((sent) => !claims.some((c) => sent.includes(c) || wordOverlap(sent, c) >= 0.6))
+        .join(" ");
+    }
+    if (text.trim().length > 0) {
+      body.push(text);
+      sources.push(draft.paragraph_sources[idx] ?? []);
+    }
+  });
+
+  return { ...draft, body_md: body.join("\n\n"), paragraph_sources: sources };
 }
 
 function describePeople(people: PersonRow[]): string {
@@ -278,9 +339,32 @@ export async function writeChapter(
         model: MODELS[opts.model ?? "opus"],
         attempts: attempt,
         rejected,
+        excised: false,
       };
     }
     rejected.push(issues);
+    opts.onAttempt?.(attempt, issues);
+  }
+
+  // Model repairs exhausted. If what remains is entailment only, cut it.
+  const last = rejected[rejected.length - 1];
+  if (draft && last.every((i) => i.rule === "entailment")) {
+    const cut = excise(draft, last);
+    const recheck = [
+      ...validate(cut, allowedIds, opts.people),
+      ...(await checkEntailment(cut, sources, opts.foundations)),
+    ];
+    if (recheck.length === 0) {
+      return {
+        draft: { ...cut, source_memory_ids: [...new Set(cut.paragraph_sources.flat())] },
+        model: MODELS[opts.model ?? "opus"],
+        attempts: maxAttempts + 1,
+        rejected,
+        excised: true,
+      };
+    }
+    rejected.push(recheck);
+    opts.onAttempt?.(maxAttempts + 1, recheck);
   }
 
   throw new Error(
