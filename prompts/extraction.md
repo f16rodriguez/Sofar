@@ -78,6 +78,11 @@ something means it is open, not that it is absent.
 Include their distinctive usages verbatim, including ones a copy-editor would
 correct. If they say "I stood an entire summer here", that is the voice.
 
+The line between voice and error: **correct the keyboard, keep the idiom.** A
+typed transcript carries slips the person never said — "aND", a doubled word,
+a dropped letter. Fix those silently in every quote, statement and phrase.
+Grammar, word choice and rhythm are theirs and stay exactly as spoken.
+
 **unsaid** — the answer to the final question, or anything the subject flagged
 as never said aloud. Stored, never written into the book without permission.
 

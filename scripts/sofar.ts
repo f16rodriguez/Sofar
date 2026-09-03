@@ -16,7 +16,9 @@ import { usage, loadPrompt } from "../lib/llm";
 import { createAnswer } from "../lib/repo";
 import { extract } from "../lib/pipeline/extract";
 import { merge } from "../lib/pipeline/merge";
+import * as memory from "../lib/memory";
 import {
+  assess,
   writeChapter,
   type Foundations,
   type MemoryRow,
@@ -37,6 +39,7 @@ const OUTLINES = [
   {
     kind: "prologue" as const,
     number: 0,
+    label: "Prologue",
     blocks: ["1"],
     outline: [
       "PROLOGUE — Now. Built from what the subject said about the present:",
@@ -52,6 +55,7 @@ const OUTLINES = [
   {
     kind: "chapter" as const,
     number: 1,
+    label: "Chapter I",
     blocks: ["2"],
     outline: [
       "CHAPTER I — The decision. Built from the most recent turning point.",
@@ -63,6 +67,7 @@ const OUTLINES = [
   {
     kind: "chapter" as const,
     number: 2,
+    label: "Chapter II",
     // Blocks 3 and 4, plus the foundations pass: the cities and why he left
     // each are the backward pull, which is this chapter's job.
     blocks: ["3", "4", "foundations"],
@@ -258,14 +263,65 @@ async function run() {
   console.log(`memory layer: ${placedRows.length} rows + ${personRows.length} people`);
 
   // --- chapters (Opus, no exceptions — phase0 §5) -------------------------
+  // Before each one, the editor decides whether there is a chapter here at
+  // all (a scene, something said, a turn). If not, nothing is written; what is
+  // missing is recorded where the question generator reads (SPEC §5.6) and
+  // reported plainly. A thin chapter written anyway is the failure this
+  // prevents.
+  const needs: { chapter: string; what: string; why: string }[] = [];
+  const { data: existingThreads } = await db
+    .from("memory_threads")
+    .select("label")
+    .eq("user_id", userId);
+  const threadLabels = new Set(
+    (existingThreads ?? []).map((t: { label: string }) => t.label.toLowerCase()),
+  );
+
   for (const spec of OUTLINES) {
     const chapterRows = placedRows.filter((r) =>
       spec.blocks.includes(blockById.get(r.id) ?? ""),
     );
-    console.log(`writing ${spec.kind} ${spec.number}… (${chapterRows.length} rows from block ${spec.blocks.join("+")})`);
-    const result = await writeChapter({
+    console.log(`${spec.label}: assessing ${chapterRows.length} rows from block ${spec.blocks.join("+")}…`);
+    const verdict = await assess({
       outline: spec.outline,
       rows: chapterRows,
+      people: personRows,
+      foundations,
+    });
+
+    if (!verdict.enough || !verdict.story) {
+      console.log(`  not enough for a chapter. Missing:`);
+      const now = new Date().toISOString();
+      const fresh = verdict.missing.filter((m) => !threadLabels.has(m.what.toLowerCase()));
+      for (const m of verdict.missing) {
+        console.log(`    - ${m.what} — ${m.why}`);
+        needs.push({ chapter: spec.label, ...m });
+      }
+      if (fresh.length > 0) {
+        await memory.insertThreads(
+          db,
+          fresh.map((m) => ({
+            user_id: userId,
+            label: m.what,
+            description: `Needed for ${spec.label}: ${m.why}`,
+            first_seen_at: now,
+            last_seen_at: now,
+          })),
+        );
+        for (const m of fresh) threadLabels.add(m.what.toLowerCase());
+      }
+      console.log("");
+      console.log("─".repeat(70));
+      continue;
+    }
+
+    const kept = chapterRows.filter((r) => verdict.keep.includes(r.id));
+    console.log(`  story: ${verdict.story}`);
+    console.log(`  kept ${kept.length} of ${chapterRows.length} rows; writing…`);
+    const result = await writeChapter({
+      outline: spec.outline,
+      story: verdict.story,
+      rows: kept,
       people: personRows,
       foundations,
       voice: (voiceRow.data?.profile as Record<string, unknown>) ?? {},
@@ -317,6 +373,13 @@ async function run() {
     console.log(result.draft.body_md);
     console.log("");
     console.log("─".repeat(70));
+  }
+
+  if (needs.length > 0) {
+    console.log("");
+    console.log("WHAT THE BOOK STILL NEEDS");
+    for (const n of needs) console.log(`  ${n.chapter}: ${n.what}`);
+    console.log("  (recorded as open threads for the question generator)");
   }
 
   console.log(`\nRUN COST: ${usage.summary()}`);

@@ -15,11 +15,22 @@ this chapter. Never quote a phrase from it; quote only from the rows. A phrase
 that appears in the voice profile and not in your rows belongs to some other
 chapter, and using it here is invention.
 
-**These rows are the entire world.** Anything not in them does not exist: no
-invented weather, no invented dialogue, no filler emotion, no detail that
-"must" have been true. If you need a fact you weren't given, write around the
-gap. Where the person was vague, be vague in the same place — vagueness is
-information about them.
+**You are given what this chapter is about — one line from the editor.**
+Write that. The rows are what you may draw on, not what you must use; the
+editor has already left out what does not serve the story, and you may leave
+out more. A chapter is a scene with a turn, not an inventory. Who cares about
+breakfast, unless breakfast is the story.
+
+**Nothing outside the rows exists.** No invented weather, no invented dialogue,
+no filler emotion, no detail that "must" have been true. If you need a fact you
+weren't given, the sentence that needed it is cut.
+
+**The interview does not exist in the book.** Never mention a question, an
+answer, a gap, a silence, or what was not said. Never write "he does not say",
+"he does not name", "asked about". Never remark that a detail is missing,
+never remark that two answers resemble each other. If the record is thin, the
+chapter is short. It is never *about* being thin. Whatever is missing is
+someone else's job, later, as a question — not yours, now, as a sentence.
 
 ## Sourcing
 

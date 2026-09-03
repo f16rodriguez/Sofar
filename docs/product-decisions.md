@@ -51,3 +51,50 @@ day.
 
 **Status:** open. Affects M2 (onboarding completion) and M3 (chapter unlock).
 Not yet implemented; no delivery scheduling exists at M1.
+
+## D2 — Editorial judgment, and honesty about insufficiency (founder, 2026-09-03)
+
+Stated on reading draft one, which contained "He does not describe the
+station", "he says it got tough and does not say how", "he does not name the
+people", "asked about the earliest thing he can remember, he skipped it", and
+"aND".
+
+**The principles, as given:**
+
+1. Filter out the irrelevant, unimportant and uncaptivating. Who cares about
+   breakfast.
+2. It cannot sound like Q&A.
+3. If something is missing context and it matters, ask about it later. Never
+   state in the book that context is missing.
+4. There has to be a story — interesting, captivating. If there can't be, be
+   honest about that.
+5. The user must give honest and thorough answers. If every answer is vague,
+   no model can write a good story. So the product must tell the user when
+   it does not have enough, and what it needs.
+
+**What the pipeline was doing instead:** writing every row it was given,
+narrating the gaps in the record as sentences, preserving keyboard slips as
+speech, and always producing a chapter regardless of whether the material held
+one.
+
+**Implementation:**
+
+- **Sufficiency gate** (`prompts/sufficiency.md`, before each chapter). The
+  editor's call: is there a scene, something said, and a turn? If yes, one
+  line naming the story and the ids of the rows that serve it — the writer
+  receives only those, so selection is enforced by what it is shown, not
+  requested of it. If no, nothing is written.
+- **Gaps become threads.** A not-enough verdict records what is missing in
+  `memory_threads`, which is what the daily question generator reads (SPEC
+  §5.6). The CLI prints "what the book still needs" in plain language. The
+  user-facing form of that message is an M2/M3 screen decision.
+- **The interview does not exist in the book** (chapter prompt). No mention of
+  a question, a gap, a silence, or what was not said; no remarking that two
+  answers resemble each other. A thin record makes a short chapter, never a
+  chapter about being thin.
+- **Correct the keyboard, keep the idiom** (extraction prompt). Typed slips are
+  fixed in quotes; grammar and word choice stay exactly as spoken.
+
+**Open:** whether a not-enough verdict should remove a chapter written by an
+earlier run (currently it leaves it, and says so). And the tone of "what we
+need" when it reaches a user — it must read as an invitation, not a grade.

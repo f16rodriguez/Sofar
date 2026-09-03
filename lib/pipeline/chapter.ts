@@ -11,7 +11,13 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { complete, loadPrompt, MODELS, type ModelTier } from "../llm";
-import { ChapterSchema, EntailmentSchema, type ChapterDraft } from "./schema";
+import {
+  ChapterSchema,
+  EntailmentSchema,
+  SufficiencySchema,
+  type ChapterDraft,
+  type Sufficiency,
+} from "./schema";
 
 export interface Foundations {
   book_name: string | null;
@@ -41,8 +47,42 @@ export interface PersonRow {
   prose_reference: string | null;
 }
 
+/**
+ * The editor's call, before writing: is there a chapter in these rows, what is
+ * it about, and which rows serve it? The writer only ever sees the kept rows —
+ * selection is enforced by what it receives, not requested of it.
+ */
+export async function assess(opts: {
+  outline: string;
+  rows: MemoryRow[];
+  people: PersonRow[];
+  foundations: Foundations;
+}): Promise<Sufficiency> {
+  const verdict = await complete({
+    task: "sufficiency",
+    system: loadPrompt("sufficiency"),
+    prompt: [
+      `OUTLINE\n${opts.outline}`,
+      "",
+      `FOUNDATIONS\n${JSON.stringify(opts.foundations)}`,
+      "",
+      `PEOPLE\n${describePeople(opts.people)}`,
+      "",
+      `ROWS\n${opts.rows.map((r) => `- [${r.id}] (${r.kind}) ${r.text}`).join("\n")}`,
+    ].join("\n"),
+    schema: SufficiencySchema,
+    effort: "high",
+    maxTokens: 6000,
+  });
+  // Only ids that exist; the editor cannot keep a row it was not shown.
+  const known = new Set(opts.rows.map((r) => r.id));
+  return { ...verdict, keep: verdict.keep.filter((id) => known.has(id)) };
+}
+
 export interface WriteChapterOptions {
   outline: string;
+  /** One line from the editor: what this chapter is about. */
+  story: string;
   rows: MemoryRow[];
   people: PersonRow[];
   foundations: Foundations;
@@ -282,6 +322,8 @@ export async function writeChapter(
     .join("\n");
 
   const base = [
+    `THIS CHAPTER IS ABOUT\n${opts.story}`,
+    "",
     `OUTLINE INSTRUCTION\n${opts.outline}`,
     "",
     `FOUNDATIONS\n${JSON.stringify(opts.foundations, null, 2)}`,
@@ -290,7 +332,7 @@ export async function writeChapter(
     "",
     `PEOPLE — naming permission is absolute\n${describePeople(opts.people)}`,
     "",
-    `MEMORY ROWS — the entire world of this chapter\n${rowsBlock}`,
+    `MEMORY ROWS — what you may draw on; the editor has already left out what does not serve the story\n${rowsBlock}`,
   ].join("\n");
 
   // One generation, then repairs. Regenerating on every rejection asks the

@@ -131,3 +131,13 @@ export const EntailmentSchema = z.object({
     }),
   ),
 });
+
+// Sufficiency: is there a chapter here, and what is it about? Decided before
+// anything is written. The writer receives only the rows the editor kept.
+export const SufficiencySchema = z.object({
+  enough: z.boolean(),
+  story: z.string().nullable(),
+  keep: z.array(z.string()),
+  missing: z.array(z.object({ what: z.string(), why: z.string() })),
+});
+export type Sufficiency = z.infer<typeof SufficiencySchema>;
