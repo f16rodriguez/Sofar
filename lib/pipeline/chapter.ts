@@ -202,7 +202,7 @@ export async function writeChapter(
     ...opts.rows.map((r) => r.id),
     ...opts.people.map((p) => p.id),
   ]);
-  const maxAttempts = opts.maxAttempts ?? 3;
+  const maxAttempts = opts.maxAttempts ?? 4; // 1 generation + 3 repairs
   const rejected: ValidationIssue[][] = [];
 
   // id → the text the entailment gate will hold each paragraph to.
@@ -230,29 +230,43 @@ export async function writeChapter(
     `MEMORY ROWS — the entire world of this chapter\n${rowsBlock}`,
   ].join("\n");
 
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    const correction =
-      rejected.length > 0
-        ? [
-            "",
-            `REJECTED ${rejected.length} TIME(S). Every claim below was cut for saying`,
-            "more than its sources. Do not replace them with new ones of the same kind:",
-            ...[...new Set(rejected.flat().map((i) => `- ${i.rule}: ${i.detail}`))],
-            "",
-            "Fix these. Cite a real row id for every paragraph; never name a",
-            "person whose row forbids it; and say nothing a cited row does not",
-            "say — cut the claim rather than soften it.",
-          ].join("\n")
-        : "";
+  // One generation, then repairs. Regenerating on every rejection asks the
+  // model to be creative again, and it re-interprets somewhere new each time;
+  // the first run of the gate went 15 → 3 rejections over three full rewrites
+  // and still failed. Repair keeps the draft and cuts exactly what was named.
+  let draft: ChapterDraft | null = null;
 
-    const draft = await complete({
-      task: "chapter_major",
-      model: opts.model,
-      system: loadPrompt("chapter"),
-      prompt: base + correction,
-      schema: ChapterSchema,
-      maxTokens: 32000,
-    });
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    if (draft === null) {
+      draft = await complete({
+        task: "chapter_major",
+        model: opts.model,
+        system: loadPrompt("chapter"),
+        prompt: base,
+        schema: ChapterSchema,
+        maxTokens: 32000,
+      });
+    } else {
+      const last = rejected[rejected.length - 1];
+      draft = await complete({
+        task: "chapter_major",
+        model: opts.model,
+        system: [loadPrompt("chapter"), "", loadPrompt("chapter-repair")].join("\n"),
+        prompt: [
+          "REJECTED CLAIMS — remove or rewrite only these:",
+          ...last.map((i) => `- ${i.rule}: ${i.detail}`),
+          "",
+          "DRAFT",
+          JSON.stringify(draft),
+          "",
+          base,
+        ].join("\n"),
+        schema: ChapterSchema,
+        // Surgery, not composition.
+        effort: "medium",
+        maxTokens: 16000,
+      });
+    }
 
     let issues = validate(draft, allowedIds, opts.people);
     if (issues.length === 0) {
