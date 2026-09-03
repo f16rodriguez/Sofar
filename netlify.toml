@@ -1,0 +1,8 @@
+[build]
+  command = "npm run build"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+# Scheduled functions (daily question cron, audio retention, So far monthly)
+# are added in M4/M6 under netlify/functions with `schedule` config.
