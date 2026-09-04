@@ -8,6 +8,8 @@
   # RLS stands behind it. Every genuine secret — service role, Anthropic,
   # Deepgram — is server-only and stays scanned.
   SECRETS_SCAN_OMIT_KEYS = "NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_ANON_KEY"
+  # Match the version the app is developed and typechecked against.
+  NODE_VERSION = "22"
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"
