@@ -2,6 +2,7 @@
 //
 //   sofar run --transcript file.txt --user <id>
 //   sofar run --session <session-id>
+//   sofar so-far --user <id>          regenerate "So far." (SPEC §5.7)
 //
 // transcript → extraction → merge → three chapters → DB, and prints them.
 // Idempotent: running twice on the same transcript must not duplicate memory
@@ -19,6 +20,7 @@ import { extract, clean } from "../lib/pipeline/extract";
 import { merge } from "../lib/pipeline/merge";
 import * as memory from "../lib/memory";
 import { proposeRevision } from "../lib/pipeline/revision";
+import { generateSoFar } from "../lib/pipeline/sofar";
 import {
   findAngles,
   writeChapter,
@@ -130,6 +132,33 @@ async function transcriptFromSession(
   return { transcript: lines.join("\n"), userId: session.user_id };
 }
 
+/** Block 0 as the writer sees it (SPEC §5.4 foundations). */
+async function loadFoundations(
+  db: ReturnType<typeof serviceClient>,
+  userId: string,
+): Promise<Foundations> {
+  const { data: user, error } = await db
+    .from("users")
+    .select("*")
+    .eq("id", userId)
+    .single();
+  if (error || !user) {
+    throw new Error(`no such user: ${userId}`);
+  }
+  return {
+    book_name: user.book_name,
+    pronoun: user.pronoun ?? "they",
+    age: user.age,
+    birthplace: user.birthplace,
+    current_city: user.current_city,
+    prior_cities: user.prior_cities ?? [],
+    occupation: user.occupation,
+    household: user.household,
+    family_of_origin: user.family_of_origin,
+    style: user.style ?? "third",
+  };
+}
+
 async function run() {
   const db = serviceClient();
   const sessionArg = arg("session");
@@ -152,26 +181,7 @@ async function run() {
   }
 
   // --- foundations ------------------------------------------------------
-  const { data: user, error: userError } = await db
-    .from("users")
-    .select("*")
-    .eq("id", userId)
-    .single();
-  if (userError || !user) {
-    throw new Error(`no such user: ${userId}`);
-  }
-  const foundations: Foundations = {
-    book_name: user.book_name,
-    pronoun: user.pronoun ?? "they",
-    age: user.age,
-    birthplace: user.birthplace,
-    current_city: user.current_city,
-    prior_cities: user.prior_cities ?? [],
-    occupation: user.occupation,
-    household: user.household,
-    family_of_origin: user.family_of_origin,
-    style: user.style ?? "third",
-  };
+  const foundations = await loadFoundations(db, userId);
 
   // --- answer row: reuse if this exact transcript is already on record ----
   const { data: priorAnswers } = await db
@@ -424,7 +434,9 @@ async function run() {
     .from("chapters")
     .select("id, title, body_md, source_memory_ids")
     .eq("user_id", userId)
-    .eq("status", "canon");
+    .eq("status", "canon")
+    // "So far." is regenerated, never revised (SPEC §3.7).
+    .neq("kind", "sofar");
 
   const newIds = new Set(merged.placed.map((r) => r.id));
   const rowById = new Map(placedRows.map((r) => [r.id, r]));
@@ -484,13 +496,40 @@ async function run() {
   console.log(`\nRUN COST: ${usage.summary()}`);
 }
 
-const command = process.argv[2];
-if (command !== "run") {
+// --- so-far: regenerate the closing chapter (SPEC §3.7, §5.7) -------------
+// Monthly by cron once M4 lands; on demand here. One Sonnet call plus the
+// entailment gate — cents, not dollars — but a paid call all the same, so it
+// is a command, not a side effect of `run`.
+async function soFar() {
+  const db = serviceClient();
+  const userId = arg("user");
+  if (!userId) {
+    console.error("usage: sofar so-far --user <uuid>");
+    process.exit(1);
+  }
+  const foundations = await loadFoundations(db, userId);
+  console.log('writing "So far." …');
+  const result = await generateSoFar(db, { userId, foundations });
+  if (!result.written) {
+    console.log(`  not written: ${result.reason}`);
+  } else {
+    console.log(`  ${result.threads} open thread(s), ${result.attempts} attempt(s)`);
+    console.log("");
+    console.log(result.body_md);
+  }
+  console.log(`\nRUN COST: ${usage.summary()}`);
+}
+
+const commands: Record<string, () => Promise<void>> = { run, "so-far": soFar };
+const main = commands[process.argv[2] ?? ""];
+if (!main) {
   console.error("usage: sofar run --transcript <file> --user <uuid>");
+  console.error("       sofar run --session <id>");
+  console.error("       sofar so-far --user <uuid>");
   process.exit(1);
 }
 
-run().catch((err) => {
+main().catch((err) => {
   console.error(`sofar: ${err instanceof Error ? err.message : err}`);
   console.error(`RUN COST (failed): ${usage.summary()}`);
   process.exit(1);
