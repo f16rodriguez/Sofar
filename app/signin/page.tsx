@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { authClient, currentUser, isInvited } from "@/lib/auth";
 import { headers } from "next/headers";
 import { log } from "@/lib/log";
+import { siteOrigin } from "@/lib/site";
 
 export const metadata = { title: "Sofar — Sign in" };
 
@@ -17,7 +18,7 @@ async function sendLink(formData: FormData) {
   if (!isInvited(email)) redirect("/signin?problem=invite");
 
   const supabase = await authClient();
-  const host = (await headers()).get("origin") ?? "";
+  const host = siteOrigin(await headers());
   const { error } = await supabase.auth.signInWithOtp({
     email,
     options: { emailRedirectTo: `${host}/auth/callback` },
