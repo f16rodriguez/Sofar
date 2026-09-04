@@ -2,7 +2,7 @@
 // and one fewer thing between a person and the first question.
 
 import { redirect } from "next/navigation";
-import { authClient, currentUser } from "@/lib/auth";
+import { authClient, currentUser, isInvited } from "@/lib/auth";
 import { headers } from "next/headers";
 
 export const metadata = { title: "Sofar — Sign in" };
@@ -11,6 +11,9 @@ async function sendLink(formData: FormData) {
   "use server";
   const email = String(formData.get("email") ?? "").trim();
   if (!email) redirect("/signin?problem=email");
+  // Checked before the link is sent, so an uninvited address never reaches
+  // Supabase Auth and no account is created for it.
+  if (!isInvited(email)) redirect("/signin?problem=invite");
 
   const supabase = await authClient();
   const host = (await headers()).get("origin") ?? "";
@@ -57,6 +60,11 @@ export default async function SignIn({
           </form>
           {problem === "send" && (
             <p style={problemStyle}>That didn&rsquo;t send. Check the address and try again.</p>
+          )}
+          {problem === "invite" && (
+            <p style={problemStyle}>
+              Sofar is invite-only while it&rsquo;s being built.
+            </p>
           )}
         </>
       )}

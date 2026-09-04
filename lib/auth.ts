@@ -32,6 +32,23 @@ export async function authClient() {
   );
 }
 
+/**
+ * Phase 0 is twenty invited testers (SPEC §8, M7), and every interview spends
+ * real money on transcription and inference. A public URL with open sign-up is
+ * an open tab on the founder's card, so sign-in is allowlisted until there is
+ * billing to stand behind it.
+ *
+ * SOFAR_ALLOWED_EMAILS: comma-separated. Unset means nobody, deliberately —
+ * a missing env var must fail closed, not open the door.
+ */
+export function isInvited(email: string): boolean {
+  const allowed = (process.env.SOFAR_ALLOWED_EMAILS ?? "")
+    .split(",")
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean);
+  return allowed.includes(email.trim().toLowerCase());
+}
+
 export interface SignedInUser {
   id: string;
   email: string;
