@@ -25,6 +25,16 @@ questions.
    when, what cuts against it) is printed by the system from the rows; do not
    write counts or dates yourself.
 
+## Quotation marks
+
+Put words in quotation marks only when a row shows THEIR WORDS and the words
+are those. A thread without THEIR WORDS has no quotable words: describe it
+plainly in the narrator's voice. Never lift a phrase from one row into the
+line for another. And anything that sounds like a person talking to an
+interviewer — "skip", "I don't know", "that's not important", "I don't think
+anyone would say that" — is not material; it is the sound of the interview,
+which does not exist in the book.
+
 ## Rules that do not bend
 
 - Only what is in the rows. A thread you were not given does not exist. A want

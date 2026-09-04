@@ -1,13 +1,13 @@
 // Settings. What the book knows about you, who it may name, what happens to
-// your voice, and the way out. Delete-everything lands with export (M6):
-// the spec forces an export before a deletion, so nothing is deleted before
-// you can take your book with you (SPEC §3.9).
+// your voice, the way out, and the way to take it all with you or end it
+// (SPEC §3.8, §3.9).
 
 import { redirect } from "next/navigation";
 import { currentUser } from "@/lib/auth";
 import { serviceClient } from "@/lib/supabase";
 import FoundationsForm, { type FoundationsData } from "../FoundationsForm";
 import TimezoneSelect from "./TimezoneSelect";
+import DeleteAccount from "./DeleteAccount";
 import { savePerson, saveRecordings, saveTimezone } from "./actions";
 
 export const metadata = { title: "Sofar — Settings" };
@@ -147,15 +147,21 @@ export default async function SettingsPage({
           Signed in as <span className="mono">{user.email}</span>. There is no password; the link
           in your email is the key.
         </p>
-        <form action="/auth/signout" method="post">
-          <button type="submit" className="button-quiet">
-            Sign out
-          </button>
-        </form>
-        <p className="hint" style={{ marginTop: 24 }}>
-          Deleting everything arrives together with export. Nothing is deleted before you can
-          take your book with you.
-        </p>
+        <div className="row">
+          <a className="button-quiet" href="/api/export" download>
+            Export the book as PDF
+          </a>
+          <form action="/auth/signout" method="post">
+            <button type="submit" className="button-quiet">
+              Sign out
+            </button>
+          </form>
+        </div>
+      </section>
+
+      <section className="settings-section" id="delete">
+        <h2 className="section-title">Delete everything</h2>
+        <DeleteAccount />
       </section>
     </main>
   );

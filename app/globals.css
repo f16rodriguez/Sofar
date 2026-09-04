@@ -229,3 +229,20 @@ button:active { transform: scale(0.985); }
   button { transition: none; }
   button:active { transform: none; }
 }
+
+.row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+.steps { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 14px; font-family: var(--font-chrome); font-size: 14px; color: var(--muted); }
+.steps li { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.button-danger {
+  font-family: var(--font-chrome);
+  font-size: 15px;
+  font-weight: 500;
+  background: none;
+  color: var(--oxblood);
+  border: 1px solid var(--oxblood);
+  border-radius: 4px;
+  padding: 12px 20px;
+  cursor: pointer;
+}
+.button-danger:hover:not(:disabled) { background: var(--oxblood); color: var(--cream); }
+.button-danger:disabled, .input:disabled { opacity: 0.45; cursor: not-allowed; }

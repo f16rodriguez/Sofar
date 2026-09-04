@@ -32,14 +32,19 @@ async function sendLink(formData: FormData) {
 export default async function SignIn({
   searchParams,
 }: {
-  searchParams: Promise<{ sent?: string; problem?: string }>;
+  searchParams: Promise<{ sent?: string; problem?: string; deleted?: string }>;
 }) {
   if (await currentUser()) redirect("/onboarding");
-  const { sent, problem } = await searchParams;
+  const { sent, problem, deleted } = await searchParams;
 
   return (
     <main style={wrap} className="rise">
       <h1 style={title}>Sofar</h1>
+      {deleted && (
+        <p style={lede}>
+          Your book will be deleted within 24 hours. Thank you for writing it down.
+        </p>
+      )}
       {sent ? (
         <p style={lede}>
           Check your email. The link signs you in — no password.

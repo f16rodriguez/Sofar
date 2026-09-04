@@ -72,6 +72,37 @@ export const usage = {
   },
 };
 
+/**
+ * Usage arrives on the wire before the SDK decides whether the reply parses.
+ * Track it from the raw events so a failed parse is still paid for on the
+ * meter — a run that fails and reports $0 is the one lie the meter must not
+ * tell (D5).
+ */
+function meterEvenIfUnparsed(
+  model: string,
+  stream: { on: (event: "streamEvent", fn: (e: Anthropic.MessageStreamEvent) => void) => unknown },
+): { (): void; done: () => void } {
+  let seen: Anthropic.Usage | null = null;
+  let metered = false;
+  stream.on("streamEvent", (e) => {
+    if (e.type === "message_start") {
+      seen = { ...e.message.usage };
+    } else if (e.type === "message_delta" && seen) {
+      seen = { ...seen, output_tokens: e.usage.output_tokens };
+    }
+  });
+  const settle = () => {
+    if (!metered && seen) {
+      meter(model, seen);
+      metered = true;
+    }
+  };
+  settle.done = () => {
+    metered = true;
+  };
+  return settle;
+}
+
 function meter(model: string, u: Anthropic.Usage): void {
   const price = PRICE[model] ?? { input: 5, output: 25 };
   const cacheRead = u.cache_read_input_tokens ?? 0;
@@ -227,8 +258,24 @@ export async function complete<T>(opts: CompleteOptions<T>): Promise<T | string>
           ...(opts.effort ? { effort: opts.effort } : {}),
         },
       });
-      const response = await stream.finalMessage();
+      const settle = meterEvenIfUnparsed(model, stream);
+      let response: Awaited<ReturnType<typeof stream.finalMessage>>;
+      try {
+        response = await stream.finalMessage();
+      } catch (err) {
+        // The SDK throws here when the JSON cannot be parsed — usually a reply
+        // cut off by max_tokens after thinking spent the budget. The tokens
+        // were still bought.
+        settle();
+        if (err instanceof Error && /parse structured output/i.test(err.message)) {
+          throw new Error(
+            `LLM task "${opts.task}" returned unparseable output (likely truncated at the ${maxTokens}-token cap; raise maxTokens or lower effort)`,
+          );
+        }
+        throw err;
+      }
       meter(model, response.usage);
+      settle.done();
       if (response.parsed_output == null) {
         // Name the reason: a truncated response (max_tokens) and a declined
         // one look identical from a null parse, and need opposite fixes.

@@ -512,6 +512,11 @@ async function soFar() {
   const result = await generateSoFar(db, { userId, foundations });
   if (!result.written) {
     console.log(`  not written: ${result.reason}`);
+    for (const i of result.issues ?? []) console.log(`    - ${i.rule}: ${i.detail}`);
+    if (result.last_draft) {
+      console.log("\n  REJECTED DRAFT:");
+      console.log(result.last_draft.split("\n").map((l) => `    ${l}`).join("\n"));
+    }
   } else {
     console.log(`  ${result.threads} open thread(s), ${result.attempts} attempt(s)`);
     console.log("");

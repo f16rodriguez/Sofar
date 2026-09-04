@@ -61,6 +61,10 @@ export interface SoFarResult {
   body_md?: string;
   threads: number;
   attempts: number;
+  /** What the gates rejected on the last attempt, when nothing was written. */
+  issues?: { rule: string; detail: string }[];
+  /** The rejected text, so a failure can be read without another paid run. */
+  last_draft?: string;
 }
 
 /**
@@ -69,6 +73,14 @@ export interface SoFarResult {
  * person keeps returning to, and the book never talks about itself.
  */
 const EDITOR_NEED = /^(Missing|Ask):/;
+
+/**
+ * One line per open thread, but a ledger of forty lines is a list, not a
+ * chapter. The threads come ordered by how often they return, so the cap
+ * keeps the ones that keep coming back and lets the rest wait for the next
+ * month.
+ */
+const MAX_THREADS = 12;
 
 function monthYear(iso: string | null): string | null {
   if (!iso) return null;
@@ -129,9 +141,10 @@ export async function generateSoFar(
     if (q.error) throw new Error(`so far: read failed: ${q.error.code ?? q.error.message}`);
   }
 
-  const threads = ((threadsQ.data ?? []) as ThreadRow[]).filter(
+  const allThreads = ((threadsQ.data ?? []) as ThreadRow[]).filter(
     (t) => !EDITOR_NEED.test(t.description ?? ""),
   );
+  const threads = allThreads.slice(0, MAX_THREADS);
   const stances = (stancesQ.data ?? []) as StanceRow[];
   const current = stances.filter((s) => !s.superseded_by);
   const superseded = stances.filter((s) => s.superseded_by);
@@ -199,7 +212,11 @@ export async function generateSoFar(
       .join("\n") || "(none)";
 
   const basePrompt = [
-    `OPEN THREADS — one line each, in this order\n${threadList}`,
+    `OPEN THREADS — one line each, in this order${
+      allThreads.length > threads.length
+        ? ` (the ${threads.length} that return most; ${allThreads.length - threads.length} more wait)`
+        : ""
+    }\n${threadList}`,
     "",
     `WHAT THEY CURRENTLY SAY THEY WANT OR HOLD — current stances\n${stanceList}`,
     "",
@@ -213,6 +230,8 @@ export async function generateSoFar(
   ].join("\n");
 
   let feedback = "";
+  let lastIssues: { rule: string; detail: string }[] = [];
+  let lastDraft = "";
   const maxAttempts = 2;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     const out = await complete({
@@ -220,8 +239,11 @@ export async function generateSoFar(
       system: loadPrompt("sofar"),
       prompt: feedback ? `${basePrompt}\n\n${feedback}` : basePrompt,
       schema: SoFarSchema,
-      effort: "high",
-      maxTokens: 8000,
+      // A ledger, not a chapter: medium is enough, and thinking comes out of
+      // maxTokens — the first run at 8k was cut off mid-JSON by its own
+      // deliberation.
+      effort: "medium",
+      maxTokens: 24000,
     });
 
     // One line per thread, in order. The model can neither add nor drop one.
@@ -238,8 +260,15 @@ export async function generateSoFar(
       oneLine(out.opening_md),
       ...lines.map((l) => oneLine(l!.line_md)),
     ];
+    // The opening rests on the whole ledger it was shown, so it cites the
+    // whole ledger: the entailment gate then checks it against everything it
+    // was allowed to draw on and nothing it was not. The model's own list is
+    // kept only as attribution.
+    const openingSources = [
+      ...new Set([...rows.map((r) => r.id), ...out.opening_sources.filter((id) => allowedIds.has(id))]),
+    ];
     const paragraph_sources = [
-      out.opening_sources.filter((id) => allowedIds.has(id)),
+      openingSources,
       ...lines.map((l) => {
         const ids = [l!.thread_id];
         const a = l!.contradicted_by_stance_id;
@@ -260,6 +289,8 @@ export async function generateSoFar(
       })),
     ];
     if (issues.length > 0) {
+      lastIssues = issues.map((i) => ({ rule: i.rule, detail: i.detail }));
+      lastDraft = draft.body_md;
       feedback = `REJECTED — fix these and return the whole thing again:\n${issues
         .map((i) => `- ${i.rule}: ${i.detail}`)
         .join("\n")}`;
@@ -304,5 +335,7 @@ export async function generateSoFar(
     reason: `failed its gates after ${maxAttempts} attempts`,
     threads: threads.length,
     attempts: maxAttempts,
+    issues: lastIssues,
+    last_draft: lastDraft,
   };
 }
