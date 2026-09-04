@@ -5,7 +5,7 @@
 import { NextResponse } from "next/server";
 import { serviceClient } from "@/lib/supabase";
 import { requireUser, Unauthorized } from "@/lib/auth";
-import { renderBookPdf, type ExportChapter } from "@/lib/export/book-pdf";
+import type { ExportChapter } from "@/lib/export/book-pdf";
 import { log } from "@/lib/log";
 import { allow, tooMany, LIMITS } from "@/lib/ratelimit";
 
@@ -28,6 +28,9 @@ export async function GET() {
     ]);
     if (error) throw new Error(`chapters read failed: ${error.code ?? error.message}`);
 
+    // Loaded here, not at module scope: the renderer is heavy and only this
+    // route needs it.
+    const { renderBookPdf } = await import("@/lib/export/book-pdf");
     const pdf = await renderBookPdf({
       bookName: profile?.book_name ?? null,
       chapters: (rows ?? []) as ExportChapter[],

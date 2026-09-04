@@ -248,3 +248,21 @@ button:active { transform: scale(0.985); }
 .button-danger:disabled, .input:disabled { opacity: 0.45; cursor: not-allowed; }
 
 .consent { border-top: 0.5px solid var(--rule); padding-top: 18px; font-size: 16px; }
+
+/* --- today, manuscript, strip -------------------------------------------- */
+.eyebrow { font-family: var(--font-chrome); font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--oxblood); margin: 0; }
+.question { font-family: var(--font-book); font-weight: 400; font-size: clamp(24px, 4vw, 31px); line-height: 1.25; letter-spacing: -0.01em; margin: 0; text-wrap: balance; }
+.heard { font-family: var(--font-book); font-size: 16px; line-height: 1.5; color: var(--muted); border-top: 1px solid var(--rule); padding-top: 16px; margin: 0; }
+.heard-label { font-family: var(--font-chrome); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; margin-right: 8px; }
+.details { font-family: var(--font-chrome); font-size: 14px; }
+.strip { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; font-family: var(--font-chrome); font-size: 13px; color: var(--muted); border-bottom: 0.5px solid var(--rule); padding-bottom: 12px; }
+.strip-marks { display: flex; gap: 8px; flex-wrap: wrap; }
+.mark { color: var(--oxblood); border: 1px solid var(--oxblood); border-radius: 999px; padding: 2px 10px; font-size: 12px; }
+.manuscript { list-style: none; padding: 0; margin: 8px 0 0; display: flex; flex-direction: column; }
+.manuscript-row { display: grid; grid-template-columns: 5.5rem 1fr; gap: 4px 14px; padding: 14px 0; border-top: 0.5px solid var(--rule); align-items: baseline; }
+.manuscript-row:last-child { border-bottom: 0.5px solid var(--rule); }
+.manuscript-num { font-family: var(--font-book); color: var(--oxblood); font-size: 18px; }
+.manuscript-title { font-family: var(--font-book); font-size: 19px; }
+.manuscript-title a { color: var(--ink); text-decoration: none; }
+.manuscript-title a:hover { text-decoration: underline; }
+.manuscript-meta { grid-column: 2; font-family: var(--font-chrome); font-size: 13px; color: var(--muted); }

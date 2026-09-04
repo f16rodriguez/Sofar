@@ -3,6 +3,7 @@
 //   sofar run --transcript file.txt --user <id>
 //   sofar run --session <session-id>
 //   sofar so-far --user <id>          regenerate "So far." (SPEC §5.7)
+//   sofar daily --user <id> [--dry]   today's question (SPEC §5.6)
 //
 // transcript → extraction → merge → three chapters → DB, and prints them.
 // Idempotent: running twice on the same transcript must not duplicate memory
@@ -21,6 +22,7 @@ import { merge } from "../lib/pipeline/merge";
 import * as memory from "../lib/memory";
 import { proposeRevision } from "../lib/pipeline/revision";
 import { generateSoFar } from "../lib/pipeline/sofar";
+import { generateDailyQuestion } from "../lib/daily/question";
 import {
   findAngles,
   writeChapter,
@@ -525,12 +527,28 @@ async function soFar() {
   console.log(`\nRUN COST: ${usage.summary()}`);
 }
 
-const commands: Record<string, () => Promise<void>> = { run, "so-far": soFar };
+// --- daily: today's question (SPEC §3.4, §5.6) -----------------------------
+// Haiku, a fraction of a cent. --dry prints without writing.
+async function daily() {
+  const db = serviceClient();
+  const userId = arg("user");
+  if (!userId) {
+    console.error("usage: sofar daily --user <uuid> [--dry]");
+    process.exit(1);
+  }
+  const result = await generateDailyQuestion(db, { userId, dryRun: process.argv.includes("--dry") });
+  console.log(result.created ? "asked:" : `not asked (${result.reason}):`);
+  if (result.question) console.log(`  ${result.question}`);
+  console.log(`\nRUN COST: ${usage.summary()}`);
+}
+
+const commands: Record<string, () => Promise<void>> = { run, "so-far": soFar, daily };
 const main = commands[process.argv[2] ?? ""];
 if (!main) {
   console.error("usage: sofar run --transcript <file> --user <uuid>");
   console.error("       sofar run --session <id>");
   console.error("       sofar so-far --user <uuid>");
+  console.error("       sofar daily --user <uuid> [--dry]");
   process.exit(1);
 }
 
