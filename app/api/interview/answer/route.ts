@@ -8,6 +8,7 @@
 
 import { NextResponse } from "next/server";
 import { serviceClient } from "@/lib/supabase";
+import { requireUser, Unauthorized } from "@/lib/auth";
 import { recordAnswer, nextTurn, saveState, loadSeeds } from "@/lib/interview/session";
 import type { SessionState } from "@/lib/interview/machine";
 import { log } from "@/lib/log";
@@ -17,15 +18,17 @@ export const maxDuration = 60;
 
 export async function POST(request: Request) {
   try {
+    const user = await requireUser();
+    const userId = user.id;
+
     const form = await request.formData();
-    const userId = form.get("userId");
     const sessionId = form.get("sessionId");
     const questionText = form.get("question");
     const audio = form.get("audio");
     const typed = form.get("text");
 
-    if (typeof userId !== "string" || typeof sessionId !== "string") {
-      return NextResponse.json({ error: "userId and sessionId required" }, { status: 400 });
+    if (typeof sessionId !== "string") {
+      return NextResponse.json({ error: "sessionId required" }, { status: 400 });
     }
 
     const db = serviceClient();
@@ -86,6 +89,9 @@ export async function POST(request: Request) {
       done: turn.done,
     });
   } catch (err) {
+    if (err instanceof Unauthorized) {
+      return NextResponse.json({ error: "not signed in" }, { status: 401 });
+    }
     log.error("interview.answer", err);
     return NextResponse.json({ error: "could not record answer" }, { status: 500 });
   }

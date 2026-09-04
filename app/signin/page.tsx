@@ -1,0 +1,113 @@
+// Sign in (SPEC §3.1). Magic link — no password to invent, forget, or reset,
+// and one fewer thing between a person and the first question.
+
+import { redirect } from "next/navigation";
+import { authClient, currentUser } from "@/lib/auth";
+import { headers } from "next/headers";
+
+export const metadata = { title: "Sofar — Sign in" };
+
+async function sendLink(formData: FormData) {
+  "use server";
+  const email = String(formData.get("email") ?? "").trim();
+  if (!email) redirect("/signin?problem=email");
+
+  const supabase = await authClient();
+  const host = (await headers()).get("origin") ?? "";
+  const { error } = await supabase.auth.signInWithOtp({
+    email,
+    options: { emailRedirectTo: `${host}/auth/callback` },
+  });
+  redirect(error ? "/signin?problem=send" : "/signin?sent=1");
+}
+
+export default async function SignIn({
+  searchParams,
+}: {
+  searchParams: Promise<{ sent?: string; problem?: string }>;
+}) {
+  if (await currentUser()) redirect("/onboarding");
+  const { sent, problem } = await searchParams;
+
+  return (
+    <main style={wrap}>
+      <h1 style={title}>Sofar</h1>
+      {sent ? (
+        <p style={lede}>
+          Check your email. The link signs you in — no password.
+        </p>
+      ) : (
+        <>
+          <p style={lede}>
+            Your email, and we&rsquo;ll send a link. There is no password to
+            remember.
+          </p>
+          <form action={sendLink} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <input
+              type="email"
+              name="email"
+              required
+              autoComplete="email"
+              placeholder="you@example.com"
+              style={input}
+            />
+            <button type="submit" style={button}>
+              Send the link
+            </button>
+          </form>
+          {problem === "send" && (
+            <p style={problemStyle}>That didn&rsquo;t send. Check the address and try again.</p>
+          )}
+        </>
+      )}
+    </main>
+  );
+}
+
+const wrap: React.CSSProperties = {
+  maxWidth: "26rem",
+  margin: "0 auto",
+  padding: "clamp(48px, 12vh, 120px) 24px",
+  display: "flex",
+  flexDirection: "column",
+  gap: 20,
+};
+const title: React.CSSProperties = {
+  fontFamily: "var(--font-book)",
+  fontWeight: 400,
+  fontSize: 34,
+  margin: 0,
+};
+const lede: React.CSSProperties = {
+  fontFamily: "var(--font-book)",
+  fontSize: 19,
+  lineHeight: 1.55,
+  color: "#3d3932",
+  margin: 0,
+};
+const input: React.CSSProperties = {
+  fontFamily: "var(--font-chrome)",
+  fontSize: 16,
+  padding: "14px 16px",
+  border: "1px solid #d9d0bf",
+  borderRadius: 4,
+  background: "#fbf7ef",
+  color: "#1c1a17",
+};
+const button: React.CSSProperties = {
+  fontFamily: "var(--font-chrome)",
+  fontSize: 16,
+  fontWeight: 500,
+  background: "#7a2e2a",
+  color: "#f4eee2",
+  border: "none",
+  borderRadius: 4,
+  padding: "15px 26px",
+  cursor: "pointer",
+};
+const problemStyle: React.CSSProperties = {
+  fontFamily: "var(--font-chrome)",
+  fontSize: 14,
+  color: "#7a2e2a",
+  margin: 0,
+};

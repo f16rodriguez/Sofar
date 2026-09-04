@@ -1,41 +1,28 @@
-// The interview screen. Auth lands next; until then the user is named
-// explicitly so the voice path can be walked end to end.
+// The interview screen. Identity comes from the auth cookie; Block 0 must be
+// done first, because the writer cannot say "he" or name a city without it.
 
+import { redirect } from "next/navigation";
+import { currentUser } from "@/lib/auth";
+import { serviceClient } from "@/lib/supabase";
 import Recorder from "./Recorder";
 
 export const metadata = { title: "Sofar — Interview" };
 
-export default async function InterviewPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ user?: string }>;
-}) {
-  const { user } = await searchParams;
+export default async function InterviewPage() {
+  const user = await currentUser();
+  if (!user) redirect("/signin");
 
-  if (!user) {
-    return (
-      <main style={{ maxWidth: "34rem", margin: "0 auto", padding: "80px 24px" }}>
-        <h1
-          style={{
-            fontFamily: "var(--font-book)",
-            fontWeight: 400,
-            fontSize: "31px",
-            margin: "0 0 16px",
-          }}
-        >
-          Sofar
-        </h1>
-        <p style={{ fontFamily: "var(--font-book)", fontSize: "19px", lineHeight: 1.55 }}>
-          Sign-in arrives with the next milestone. To walk the interview now,
-          open this page with <code>?user=&lt;id&gt;</code>.
-        </p>
-      </main>
-    );
-  }
+  const db = serviceClient();
+  const { data } = await db
+    .from("users")
+    .select("pronoun, birthplace")
+    .eq("id", user.id)
+    .maybeSingle();
+  if (!data?.pronoun || !data?.birthplace) redirect("/onboarding");
 
   return (
     <main>
-      <Recorder userId={user} />
+      <Recorder />
     </main>
   );
 }

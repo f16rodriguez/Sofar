@@ -11,7 +11,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 type Phase = "idle" | "asking" | "recording" | "sending" | "done" | "error";
 
-export default function Recorder({ userId }: { userId: string }) {
+export default function Recorder() {
   const [phase, setPhase] = useState<Phase>("idle");
   const [question, setQuestion] = useState("");
   const [announceLast, setAnnounceLast] = useState(false);
@@ -30,8 +30,6 @@ export default function Recorder({ userId }: { userId: string }) {
     try {
       const res = await fetch("/api/interview/start", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId }),
       });
       if (!res.ok) throw new Error("could not start");
       const data = await res.json();
@@ -44,14 +42,13 @@ export default function Recorder({ userId }: { userId: string }) {
       setProblem("The interview could not start. Try again.");
       setPhase("error");
     }
-  }, [userId]);
+  }, []);
 
   const send = useCallback(
     async (audio: Blob | null) => {
       setPhase("sending");
       try {
         const form = new FormData();
-        form.set("userId", userId);
         form.set("sessionId", sessionId.current ?? "");
         form.set("question", question);
         if (audio) form.set("audio", audio, "answer.webm");
@@ -69,7 +66,7 @@ export default function Recorder({ userId }: { userId: string }) {
           await fetch("/api/interview/end", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ userId, sessionId: sessionId.current }),
+            body: JSON.stringify({ sessionId: sessionId.current }),
           });
           setPhase("done");
           return;
@@ -83,7 +80,7 @@ export default function Recorder({ userId }: { userId: string }) {
         setPhase("error");
       }
     },
-    [question, typed, userId],
+    [question, typed],
   );
 
   const startRecording = useCallback(async () => {

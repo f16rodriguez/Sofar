@@ -18,7 +18,7 @@ structured memory from transcripts and writes a book that revises itself.
 |---|---|
 | M0 — repo & infrastructure | **PASSED** — acceptance 7/7 against live infrastructure |
 | M1 — pipeline CLI | **PASSED.** Every paragraph traces to a transcript quote (enforced in code), reruns create no duplicate rows, three chapters generated, founder named the wrong sentences. Prose ceiling on the founder's transcript is the transcript; see `docs/product-decisions.md` D1–D4 |
-| M2 — interview engine | Next. Design changed by D4: depth over breadth, the editor's ask as the live follow-up. Script revision is founder-owned |
+| M2 — interview engine | Plumbing complete: magic-link auth, Block 0 form, browser voice capture, transcription, the §4 state machine, session→pipeline. Blocked on the founder's script revision (D4) and an end-to-end voice test |
 | M3–M7 | Not started |
 
 ## Provisioned infrastructure

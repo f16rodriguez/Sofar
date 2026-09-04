@@ -9,6 +9,7 @@
 
 import { NextResponse } from "next/server";
 import { serviceClient } from "@/lib/supabase";
+import { requireUser, Unauthorized } from "@/lib/auth";
 import { endSession } from "@/lib/interview/session";
 import type { SessionState } from "@/lib/interview/machine";
 import { log } from "@/lib/log";
@@ -17,12 +18,12 @@ export const runtime = "nodejs";
 
 export async function POST(request: Request) {
   try {
-    const { userId, sessionId } = (await request.json()) as {
-      userId?: string;
-      sessionId?: string;
-    };
-    if (!userId || !sessionId) {
-      return NextResponse.json({ error: "userId and sessionId required" }, { status: 400 });
+    const user = await requireUser();
+    const userId = user.id;
+
+    const { sessionId } = (await request.json()) as { sessionId?: string };
+    if (!sessionId) {
+      return NextResponse.json({ error: "sessionId required" }, { status: 400 });
     }
 
     const db = serviceClient();
@@ -58,6 +59,9 @@ export async function POST(request: Request) {
       minutes: Number(((1080 - state.seconds_left) / 60).toFixed(1)),
     });
   } catch (err) {
+    if (err instanceof Unauthorized) {
+      return NextResponse.json({ error: "not signed in" }, { status: 401 });
+    }
     log.error("interview.end", err);
     return NextResponse.json({ error: "could not end session" }, { status: 500 });
   }

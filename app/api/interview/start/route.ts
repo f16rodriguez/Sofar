@@ -6,17 +6,16 @@
 
 import { NextResponse } from "next/server";
 import { serviceClient } from "@/lib/supabase";
+import { requireUser, ensureProfile, Unauthorized } from "@/lib/auth";
 import { startSession, loadSeeds, nextTurn } from "@/lib/interview/session";
 import { log } from "@/lib/log";
 
 export const runtime = "nodejs";
 
-export async function POST(request: Request) {
+export async function POST() {
   try {
-    const { userId } = (await request.json()) as { userId?: string };
-    if (!userId) {
-      return NextResponse.json({ error: "userId required" }, { status: 400 });
-    }
+    const user = await requireUser();
+    await ensureProfile(user);
 
     const db = serviceClient();
     const seeds = await loadSeeds(db);
@@ -27,7 +26,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const { sessionId, state } = await startSession(db, userId);
+    const { sessionId, state } = await startSession(db, user.id);
     const turn = await nextTurn(db, { state, seeds });
 
     return NextResponse.json({
@@ -38,6 +37,9 @@ export async function POST(request: Request) {
       done: turn.done,
     });
   } catch (err) {
+    if (err instanceof Unauthorized) {
+      return NextResponse.json({ error: "not signed in" }, { status: 401 });
+    }
     // SPEC §7: never let transcript or answer content reach a log line.
     log.error("interview.start", err);
     return NextResponse.json({ error: "could not start session" }, { status: 500 });

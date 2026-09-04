@@ -1,6 +1,7 @@
 // Sofar pipeline CLI (SPEC §8, M1):
 //
 //   sofar run --transcript file.txt --user <id>
+//   sofar run --session <session-id>
 //
 // transcript → extraction → merge → three chapters → DB, and prints them.
 // Idempotent: running twice on the same transcript must not duplicate memory
@@ -85,16 +86,69 @@ function arg(name: string): string | undefined {
   return i >= 0 ? process.argv[i + 1] : undefined;
 }
 
-async function run() {
-  const file = arg("transcript");
-  const userId = arg("user");
-  if (!file || !userId) {
-    console.error("usage: sofar run --transcript <file> --user <uuid>");
-    process.exit(1);
+/**
+ * A finished interview, as one transcript. Questions and answers in the order
+ * they were spoken — which is what the extraction reads, and the same shape a
+ * hand-run interview produces.
+ */
+async function transcriptFromSession(
+  db: ReturnType<typeof serviceClient>,
+  sessionId: string,
+): Promise<{ transcript: string; userId: string }> {
+  const { data: session, error } = await db
+    .from("sessions")
+    .select("user_id, kind")
+    .eq("id", sessionId)
+    .single();
+  if (error || !session) throw new Error(`no such session: ${sessionId}`);
+
+  const { data: answers } = await db
+    .from("answers")
+    .select("transcript, question_id, created_at")
+    .eq("session_id", sessionId)
+    .order("created_at");
+
+  const questionIds = (answers ?? [])
+    .map((a: { question_id: string | null }) => a.question_id)
+    .filter((id): id is string => Boolean(id));
+  const questions = new Map<string, string>();
+  if (questionIds.length > 0) {
+    const { data: rows } = await db
+      .from("questions")
+      .select("id, text")
+      .in("id", questionIds);
+    for (const q of rows ?? []) questions.set(q.id, q.text);
   }
 
-  const transcript = fs.readFileSync(file, "utf8");
+  const lines: string[] = [`=== ${session.kind.toUpperCase()} SESSION ===`, ""];
+  for (const a of answers ?? []) {
+    const q = a.question_id ? questions.get(a.question_id) : undefined;
+    if (q) lines.push(`Q: ${q}`);
+    lines.push(`A: ${a.transcript ?? ""}`, "");
+  }
+  return { transcript: lines.join("\n"), userId: session.user_id };
+}
+
+async function run() {
   const db = serviceClient();
+  const sessionArg = arg("session");
+  const file = arg("transcript");
+  let userId = arg("user");
+  let transcript: string;
+
+  if (sessionArg) {
+    const built = await transcriptFromSession(db, sessionArg);
+    transcript = built.transcript;
+    userId = built.userId;
+    const answers = transcript.split("\nA: ").length - 1;
+    console.log(`session ${sessionArg}: ${answers} answers`);
+  } else if (file && userId) {
+    transcript = fs.readFileSync(file, "utf8");
+  } else {
+    console.error("usage: sofar run --session <id>");
+    console.error("       sofar run --transcript <file> --user <uuid>");
+    process.exit(1);
+  }
 
   // --- foundations ------------------------------------------------------
   const { data: user, error: userError } = await db
@@ -360,6 +414,11 @@ async function run() {
     console.log(result.draft.body_md);
     console.log("");
     console.log("─".repeat(70));
+  }
+
+  if (sessionArg) {
+    await db.from("sessions").update({ status: "done" }).eq("id", sessionArg);
+    console.log(`session ${sessionArg} marked done`);
   }
 
   if (needs.length > 0) {
