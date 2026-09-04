@@ -73,17 +73,21 @@ export default async (request: Request) => {
     if (error || !data.user) return json({ error: "not signed in" }, 401);
     const userId = data.user.id;
 
-    const db = serviceClient();
-    const gate = await allow(db, { action: "export", subject: userId, ...LIMITS.export });
-    if (!gate.allowed) {
-      return json({ error: "too many requests", retryAfterSeconds: gate.retryAfterSeconds }, 429, {
-        "retry-after": String(gate.retryAfterSeconds),
-      });
+    // The limiter needs the service role; the export itself does not. Reads
+    // go through the person's own session under row-level security, which
+    // is the least privilege that does the job.
+    if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      const gate = await allow(serviceClient(), { action: "export", subject: userId, ...LIMITS.export });
+      if (!gate.allowed) {
+        return json({ error: "too many requests", retryAfterSeconds: gate.retryAfterSeconds }, 429, {
+          "retry-after": String(gate.retryAfterSeconds),
+        });
+      }
     }
 
     const [{ data: profile }, { data: rows, error: readError }] = await Promise.all([
-      db.from("users").select("book_name").eq("id", userId).maybeSingle(),
-      db.from("chapters").select("number, title, kind, body_md").eq("user_id", userId),
+      supabase.from("users").select("book_name").eq("id", userId).maybeSingle(),
+      supabase.from("chapters").select("number, title, kind, body_md").eq("user_id", userId),
     ]);
     if (readError) throw new Error(`chapters read failed: ${readError.code ?? readError.message}`);
 

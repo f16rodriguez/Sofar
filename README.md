@@ -19,8 +19,10 @@ structured memory from transcripts and writes a book that revises itself.
 | M0 — repo & infrastructure | **PASSED** — acceptance 7/7 against live infrastructure |
 | M1 — pipeline CLI | **PASSED.** Every paragraph traces to a transcript quote (enforced in code), reruns create no duplicate rows, three chapters generated, founder named the wrong sentences. Prose ceiling on the founder's transcript is the transcript; see `docs/product-decisions.md` D1–D4 |
 | M2 — interview engine | Plumbing complete: magic-link auth, Block 0 form, browser voice capture, transcription, the §4 state machine, session→pipeline. Blocked on the founder's script revision (D4) and an end-to-end voice test |
-| M3 — the Book | Book screen, canon on first read, revision proposer with accept/decline, "So far." generator (`npm run sofar -- so-far --user <id>`). App shell (nav, sign-out), Settings (foundations, voice, naming permission per person, keep-recordings opt-in, time zone). Needs a live test of the propose→decline path and a first So far run |
-| M4–M7 | Not started |
+| M3 — the Book | **PASSED** — `npm run accept:m3` 10/10: a contradiction produces exactly one proposal with a one-line rationale; declining changes nothing. Book screen, canon on first read, "So far." generator (`npm run sofar -- so-far --user <id>`, first run written), app shell, Settings (foundations, voice, naming permission per person, keep-recordings opt-in, time zone, export, delete) |
+| M4 — daily engine | Plumbing without the founder question bank: Today screen, single-question voice/text answer, generator from open threads with the §5.6 hard rules enforced in code (`npm run sofar -- daily --user <id> --dry`), hourly scheduled function at eight local time, streak and marks, Manuscript screen. Push (M5) and the seed bank are open |
+| M6 — export, delete, retention, hardening | PDF export (`GET /api/export`, rendered in its own Netlify Function), delete-everything behind an export gate with a daily worker, 60-day audio deletion, rate limits, log audit (`npm run audit:logs`). `npm run accept:m6` 13/13; export verified end to end. Health at `/api/health` |
+| M5, M7 | Not started |
 | Deploy | Live at https://sofar-book.netlify.app (Netlify, upload deploys). Deploy with `scripts/deploy.sh <proxy-url>` — it uploads a clean export of HEAD, never the working directory |
 
 ## Provisioned infrastructure
