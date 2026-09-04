@@ -1,8 +1,16 @@
 [build]
   command = "npm run build"
 
+[build.environment]
+  # Next.js inlines NEXT_PUBLIC_* values into the client bundle by design, and
+  # Netlify's secret scanner then finds them in build output and fails the
+  # build. Both of these are meant to be public: the anon key is safe because
+  # RLS stands behind it. Every genuine secret — service role, Anthropic,
+  # Deepgram — is server-only and stays scanned.
+  SECRETS_SCAN_OMIT_KEYS = "NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_ANON_KEY"
+
 [[plugins]]
   package = "@netlify/plugin-nextjs"
 
-# Scheduled functions (daily question cron, audio retention, So far monthly)
-# are added in M4/M6 under netlify/functions with `schedule` config.
+# Scheduled functions (daily question cron, audio retention, So far) are added
+# in M4/M6 under netlify/functions with `schedule` config.
