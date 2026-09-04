@@ -28,10 +28,10 @@ export async function GET(request: Request) {
     const db = serviceClient();
     const { data } = await db
       .from("users")
-      .select("pronoun, birthplace")
+      .select("pronoun, birthplace, recording_consent_at")
       .eq("id", user.id)
       .maybeSingle();
-    const hasFoundations = Boolean(data?.pronoun && data?.birthplace);
+    const hasFoundations = Boolean(data?.pronoun && data?.birthplace && data?.recording_consent_at);
 
     return NextResponse.redirect(
       new URL(hasFoundations ? "/interview" : "/onboarding", origin),

@@ -246,3 +246,5 @@ button:active { transform: scale(0.985); }
 }
 .button-danger:hover:not(:disabled) { background: var(--oxblood); color: var(--cream); }
 .button-danger:disabled, .input:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.consent { border-top: 0.5px solid var(--rule); padding-top: 18px; font-size: 16px; }

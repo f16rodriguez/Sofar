@@ -6,6 +6,8 @@ import { authClient, currentUser, isInvited } from "@/lib/auth";
 import { headers } from "next/headers";
 import { log } from "@/lib/log";
 import { siteOrigin } from "@/lib/site";
+import { serviceClient } from "@/lib/supabase";
+import { allow, LIMITS } from "@/lib/ratelimit";
 
 export const metadata = { title: "Sofar — Sign in" };
 
@@ -16,6 +18,14 @@ async function sendLink(formData: FormData) {
   // Checked before the link is sent, so an uninvited address never reaches
   // Supabase Auth and no account is created for it.
   if (!isInvited(email)) redirect("/signin?problem=invite");
+  // Five links an hour per address. Supabase has its own cap; this one is
+  // ours, and it answers with a sentence instead of a 429.
+  const gate = await allow(serviceClient(), {
+    action: "signin_link",
+    subject: email.toLowerCase(),
+    ...LIMITS.signin_link,
+  });
+  if (!gate.allowed) redirect("/signin?problem=slow");
 
   const supabase = await authClient();
   const host = siteOrigin(await headers());
@@ -70,6 +80,11 @@ export default async function SignIn({
           </form>
           {problem === "send" && (
             <p style={problemStyle}>That didn&rsquo;t send. Check the address and try again.</p>
+          )}
+          {problem === "slow" && (
+            <p style={problemStyle}>
+              That&rsquo;s a few links in a row. Check your inbox and spam; the last one still works.
+            </p>
           )}
           {problem === "invite" && (
             <p style={problemStyle}>

@@ -14,7 +14,8 @@
     "accept:m3": "tsx scripts/m3-accept.ts",
     "test:export": "tsx scripts/export-test.ts",
     "jobs": "tsx scripts/jobs.ts",
-    "accept:m6": "tsx scripts/m6-accept.ts"
+    "accept:m6": "tsx scripts/m6-accept.ts",
+    "audit:logs": "tsx scripts/audit-logs.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.123.0",

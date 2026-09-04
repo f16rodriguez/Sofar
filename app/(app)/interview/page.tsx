@@ -15,10 +15,10 @@ export default async function InterviewPage() {
   const db = serviceClient();
   const { data } = await db
     .from("users")
-    .select("pronoun, birthplace")
+    .select("pronoun, birthplace, recording_consent_at")
     .eq("id", user.id)
     .maybeSingle();
-  if (!data?.pronoun || !data?.birthplace) redirect("/onboarding");
+  if (!data?.pronoun || !data?.birthplace || !data?.recording_consent_at) redirect("/onboarding");
 
   return (
     <main>

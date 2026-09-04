@@ -177,8 +177,10 @@ export default async function Home() {
       <footer>
         <div className="wrap">
           <span>Sofar</span>
-          {/* Privacy, Terms and Contact pages land with M6; no dead links until then. */}
-          <span>Privacy &nbsp; Terms &nbsp; Contact</span>
+          {/* Terms and Contact are the founder's and counsel's; no dead links until then. */}
+          <span>
+            <Link href="/privacy">Privacy</Link> &nbsp; Terms &nbsp; Contact
+          </span>
         </div>
       </footer>
     </div>

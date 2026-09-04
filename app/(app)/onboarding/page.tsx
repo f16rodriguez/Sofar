@@ -29,6 +29,7 @@ export default async function Onboarding() {
         data={(data as FoundationsData | null) ?? null}
         next="/interview"
         submitLabel="Start the interview"
+        askConsent={!data?.recording_consent_at}
       />
     </main>
   );

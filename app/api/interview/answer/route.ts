@@ -12,6 +12,7 @@ import { requireUser, Unauthorized } from "@/lib/auth";
 import { recordAnswer, nextTurn, saveState, loadSeeds } from "@/lib/interview/session";
 import type { SessionState } from "@/lib/interview/machine";
 import { log } from "@/lib/log";
+import { allow, tooMany, LIMITS } from "@/lib/ratelimit";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -32,6 +33,8 @@ export async function POST(request: Request) {
     }
 
     const db = serviceClient();
+    const gate = await allow(db, { action: "interview_answer", subject: userId, ...LIMITS.interview_answer });
+    if (!gate.allowed) return tooMany(gate);
 
     const { data: session, error } = await db
       .from("sessions")

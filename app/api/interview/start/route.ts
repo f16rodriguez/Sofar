@@ -9,6 +9,7 @@ import { serviceClient } from "@/lib/supabase";
 import { requireUser, ensureProfile, Unauthorized } from "@/lib/auth";
 import { startSession, loadSeeds, nextTurn } from "@/lib/interview/session";
 import { log } from "@/lib/log";
+import { allow, tooMany, LIMITS } from "@/lib/ratelimit";
 
 export const runtime = "nodejs";
 
@@ -18,6 +19,19 @@ export async function POST() {
     await ensureProfile(user);
 
     const db = serviceClient();
+    const gate = await allow(db, { action: "interview_start", subject: user.id, ...LIMITS.interview_start });
+    if (!gate.allowed) return tooMany(gate);
+
+    // Block 0 must be done and consent given (landing promise; SPEC §7).
+    const { data: profile } = await db
+      .from("users")
+      .select("pronoun, birthplace, recording_consent_at")
+      .eq("id", user.id)
+      .maybeSingle();
+    if (!profile?.pronoun || !profile?.birthplace || !profile?.recording_consent_at) {
+      return NextResponse.json({ error: "foundations and consent required" }, { status: 412 });
+    }
+
     const seeds = await loadSeeds(db);
     if (seeds.length === 0) {
       return NextResponse.json(

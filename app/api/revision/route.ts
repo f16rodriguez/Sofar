@@ -7,6 +7,7 @@ import { serviceClient } from "@/lib/supabase";
 import { requireUser, Unauthorized } from "@/lib/auth";
 import { decideRevision } from "@/lib/pipeline/revision";
 import { log } from "@/lib/log";
+import { allow, tooMany, LIMITS } from "@/lib/ratelimit";
 
 export const runtime = "nodejs";
 
@@ -24,7 +25,10 @@ export async function POST(request: Request) {
       );
     }
 
-    const result = await decideRevision(serviceClient(), user.id, revisionId, decision);
+    const db = serviceClient();
+    const gate = await allow(db, { action: "revision", subject: user.id, ...LIMITS.revision });
+    if (!gate.allowed) return tooMany(gate);
+    const result = await decideRevision(db, user.id, revisionId, decision);
     if (!result.ok) {
       return result.reason === "not found"
         ? NextResponse.json({ error: "no such revision" }, { status: 404 })

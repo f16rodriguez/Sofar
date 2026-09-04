@@ -7,6 +7,7 @@ import { serviceClient } from "@/lib/supabase";
 import { requireUser, Unauthorized } from "@/lib/auth";
 import { renderBookPdf, type ExportChapter } from "@/lib/export/book-pdf";
 import { log } from "@/lib/log";
+import { allow, tooMany, LIMITS } from "@/lib/ratelimit";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -16,6 +17,8 @@ export async function GET() {
   try {
     const user = await requireUser();
     const db = serviceClient();
+    const gate = await allow(db, { action: "export", subject: user.id, ...LIMITS.export });
+    if (!gate.allowed) return tooMany(gate);
     const [{ data: profile }, { data: rows, error }] = await Promise.all([
       db.from("users").select("book_name").eq("id", user.id).maybeSingle(),
       db

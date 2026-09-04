@@ -15,6 +15,7 @@ export interface FoundationsData {
   household: string | null;
   family_of_origin: string | null;
   style: string | null;
+  recording_consent_at?: string | null;
 }
 
 export default function FoundationsForm({
@@ -22,11 +23,14 @@ export default function FoundationsForm({
   next,
   submitLabel,
   showStyle = false,
+  askConsent = false,
 }: {
   data: FoundationsData | null;
   next: string;
   submitLabel: string;
   showStyle?: boolean;
+  /** Block 0 asks once; the interview does not start without it. */
+  askConsent?: boolean;
 }) {
   return (
     <form action={saveFoundations} className="form">
@@ -88,6 +92,17 @@ export default function FoundationsForm({
         name="family_of_origin"
         defaultValue={data?.family_of_origin ?? ""}
       />
+
+      {askConsent && (
+        <label className="option consent">
+          <input type="checkbox" name="recording_consent" required />
+          <span>
+            I&rsquo;m okay being recorded. Recordings are transcribed, and the recording itself is
+            deleted after sixty days unless I choose to keep it. Nothing I say is used to train
+            anything.
+          </span>
+        </label>
+      )}
 
       <button type="submit" className="button">
         {submitLabel}

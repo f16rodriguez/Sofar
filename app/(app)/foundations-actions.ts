@@ -20,6 +20,9 @@ export async function saveFoundations(formData: FormData) {
     .map((c) => c.trim())
     .filter(Boolean);
   const style = text("style");
+  // Consent is set once and never unset from here; withdrawing it is a
+  // conversation, not a checkbox (delete everything is in Settings).
+  const consent = formData.get("recording_consent") === "on";
 
   const db = serviceClient();
   const { error } = await db
@@ -36,6 +39,7 @@ export async function saveFoundations(formData: FormData) {
       household: text("household"),
       family_of_origin: text("family_of_origin"),
       ...(style === "first" || style === "third" ? { style } : {}),
+      ...(consent ? { recording_consent_at: new Date().toISOString() } : {}),
       updated_at: new Date().toISOString(),
     })
     .eq("id", user.id);

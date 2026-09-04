@@ -11,6 +11,7 @@ import { serviceClient } from "@/lib/supabase";
 import { authClient, requireUser, Unauthorized } from "@/lib/auth";
 import { enqueueAccountDeletion } from "@/lib/jobs";
 import { log } from "@/lib/log";
+import { allow, tooMany, LIMITS } from "@/lib/ratelimit";
 
 export const runtime = "nodejs";
 
@@ -28,7 +29,10 @@ export async function DELETE(request: Request) {
       );
     }
 
-    await enqueueAccountDeletion(serviceClient(), user.id);
+    const db = serviceClient();
+    const gate = await allow(db, { action: "account_delete", subject: user.id, ...LIMITS.account_delete });
+    if (!gate.allowed) return tooMany(gate);
+    await enqueueAccountDeletion(db, user.id);
     const supabase = await authClient();
     await supabase.auth.signOut();
     return NextResponse.json({ status: "scheduled", within: "24h" }, { status: 202 });
