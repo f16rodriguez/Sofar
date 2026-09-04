@@ -4,8 +4,8 @@
   --cream: #f4eee2;
   --ink: #1c1a17;
   --oxblood: #7a2e2a;
-  /* Newsreader (book text) and Instrument Sans (chrome) are loaded in M2+;
-     these stacks are the fallbacks they resolve onto. */
+  /* Newsreader (book text) and Instrument Sans (chrome) are loaded in
+     app/layout.tsx; these stacks are the fallbacks they resolve onto. */
   --font-book: "Newsreader", Georgia, "Times New Roman", serif;
   --font-chrome: "Instrument Sans", -apple-system, "Segoe UI", Helvetica, Arial,
     sans-serif;
