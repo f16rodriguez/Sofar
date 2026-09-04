@@ -1,5 +1,9 @@
 [build]
   command = "npm run build"
+  # The Next.js runtime refuses a publish directory equal to the site's base
+  # directory, which is what an unset publish resolves to — every upload
+  # deploy failed on exactly that, after a successful `next build`.
+  publish = ".next"
 
 [build.environment]
   # Next.js inlines NEXT_PUBLIC_* values into the client bundle by design, and
