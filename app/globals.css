@@ -23,3 +23,209 @@ body {
   color: var(--ink);
   font-family: var(--font-chrome);
 }
+
+/* --- tokens shared by the signed-in screens ------------------------------ */
+:root {
+  --muted: #7a746a;
+  --rule: #d9d0bf;
+  --paper: #fbf7ef;
+  --parch: #efe5da;
+}
+
+/* --- wordmark (landing and nav) ------------------------------------------ */
+.wordmark {
+  font-family: var(--font-book);
+  font-size: 22px;
+  letter-spacing: -0.01em;
+  text-decoration: none;
+  color: var(--ink);
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 4px;
+}
+.wordmark .rib {
+  display: inline-block;
+  width: 8px;
+  height: 22px;
+  background: var(--oxblood);
+  position: relative;
+  top: -8px;
+}
+.wordmark .rib::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -1px;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-bottom: 4px solid var(--cream);
+}
+
+/* --- nav (SPEC §6) -------------------------------------------------------- */
+.nav {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--cream);
+  border-bottom: 0.5px solid var(--rule);
+}
+.nav-wrap {
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: 14px 20px 10px;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+}
+.nav-links {
+  display: flex;
+  align-items: baseline;
+  gap: 18px;
+}
+.nav-link {
+  font-family: var(--font-chrome);
+  font-size: 14px;
+  color: var(--muted);
+  text-decoration: none;
+  padding: 4px 0;
+  border-bottom: 1px solid transparent;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+.nav-link:hover { color: var(--ink); }
+.nav-link.current { color: var(--ink); border-bottom-color: var(--oxblood); }
+.nav-button { background: none; border: none; border-bottom: 1px solid transparent; cursor: pointer; }
+
+/* --- pages and forms ------------------------------------------------------- */
+.page-narrow {
+  max-width: 32rem;
+  margin: 0 auto;
+  padding: clamp(32px, 8vh, 72px) 24px 96px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.page-title {
+  font-family: var(--font-book);
+  font-weight: 400;
+  font-size: clamp(26px, 4vw, 34px);
+  letter-spacing: -0.015em;
+  margin: 0;
+}
+.section-title {
+  font-family: var(--font-book);
+  font-weight: 400;
+  font-size: clamp(22px, 3.5vw, 27px);
+  letter-spacing: -0.01em;
+  margin: 0;
+  text-wrap: balance;
+}
+.lede {
+  font-family: var(--font-book);
+  font-size: 19px;
+  line-height: 1.55;
+  color: #3d3932;
+  margin: 0;
+}
+.settings-section {
+  margin-top: 20px;
+  padding-top: 32px;
+  border-top: 0.5px solid var(--rule);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.form { display: flex; flex-direction: column; gap: 22px; }
+.field { display: flex; flex-direction: column; gap: 6px; }
+.choice { border: none; padding: 0; margin: 0; gap: 10px; }
+.label { font-family: var(--font-book); font-size: 18px; color: var(--ink); }
+.hint { font-family: var(--font-chrome); font-size: 13px; color: var(--muted); }
+.input {
+  font-family: var(--font-chrome);
+  font-size: 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background: var(--paper);
+  color: var(--ink);
+  width: 100%;
+}
+.input:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+.option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-family: var(--font-book);
+  font-size: 17px;
+  line-height: 1.5;
+  color: var(--ink);
+}
+.option input { margin-top: 5px; accent-color: var(--oxblood); }
+.option em { color: var(--muted); }
+.button {
+  align-self: flex-start;
+  font-family: var(--font-chrome);
+  font-size: 16px;
+  font-weight: 500;
+  background: var(--oxblood);
+  color: var(--cream);
+  border: none;
+  border-radius: 4px;
+  padding: 15px 26px;
+  cursor: pointer;
+  margin-top: 8px;
+}
+.button:hover { background: #63231f; }
+.button-quiet {
+  align-self: flex-start;
+  font-family: var(--font-chrome);
+  font-size: 14px;
+  background: none;
+  color: var(--ink);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 10px 16px;
+  cursor: pointer;
+}
+.button-quiet:hover { border-color: var(--ink); }
+button:focus-visible, a:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.saved { font-family: var(--font-chrome); font-size: 13px; color: var(--oxblood); margin: 0; }
+.problem { font-family: var(--font-chrome); font-size: 14px; color: var(--oxblood); margin: 0; }
+.mono { font-family: var(--font-chrome); }
+
+.people { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 16px; }
+.person { background: var(--paper); border: 1px solid var(--rule); padding: 18px 20px; }
+.person-form { display: flex; flex-direction: column; gap: 12px; }
+.person-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.person-label { font-family: var(--font-book); font-size: 20px; }
+
+/* --- motion ---------------------------------------------------------------
+   Quiet. Content rises into place; the record button breathes while it
+   listens; a revision unfolds. Nothing loops except the breathing, and
+   nothing moves for people who asked it not to. */
+@keyframes rise {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+.rise { animation: rise 0.45s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+
+@keyframes breathe {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(122, 46, 42, 0.38); }
+  60% { box-shadow: 0 0 0 16px rgba(122, 46, 42, 0); }
+}
+.listening { animation: breathe 1.9s ease-out infinite; }
+
+@keyframes unfold {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: none; }
+}
+.unfold { animation: unfold 0.3s ease-out both; }
+
+button { transition: background 0.15s ease, border-color 0.15s ease, transform 0.08s ease; }
+button:active { transform: scale(0.985); }
+
+@media (prefers-reduced-motion: reduce) {
+  .rise, .listening, .unfold { animation: none; }
+  button { transition: none; }
+  button:active { transform: none; }
+}

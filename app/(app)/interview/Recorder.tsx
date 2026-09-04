@@ -127,7 +127,7 @@ export default function Recorder() {
 
   if (phase === "idle") {
     return (
-      <div style={S.wrap}>
+      <div style={S.wrap} className="rise">
         <p style={S.lede}>
           Twenty minutes of questions. Answer out loud, the way you would to a
           person across a table. You can skip anything — just say skip.
@@ -141,7 +141,7 @@ export default function Recorder() {
 
   if (phase === "done") {
     return (
-      <div style={S.wrap}>
+      <div style={S.wrap} className="rise">
         <h1 style={S.question}>That&rsquo;s everything.</h1>
         <p style={S.lede}>Your chapters are being written.</p>
         <a href="/book" style={{ ...S.primary, textDecoration: "none" }}>
@@ -152,16 +152,21 @@ export default function Recorder() {
   }
 
   return (
-    <div style={S.wrap}>
+    <div style={S.wrap} className="rise" key={question}>
       <div style={S.clock}>
         {minutes}:{seconds}
       </div>
 
       {announceLast && <p style={S.last}>This is the last question.</p>}
+      {phase === "recording" && (
+        <p style={S.last} aria-live="polite">
+          Listening
+        </p>
+      )}
       <h1 style={S.question}>{question}</h1>
 
       {phase === "recording" ? (
-        <button style={{ ...S.primary, ...S.stop }} onClick={stopRecording}>
+        <button style={{ ...S.primary, ...S.stop }} className="listening" onClick={stopRecording}>
           Done answering
         </button>
       ) : (

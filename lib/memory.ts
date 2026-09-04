@@ -149,3 +149,28 @@ export async function bumpThread(
   if (updateError)
     throw new Error(`bumpThread update failed: ${updateError.code ?? updateError.message}`);
 }
+
+/**
+ * Naming permission is the person's to grant or withdraw (migration 0005).
+ * Extraction sets it true only when they spoke the name; Settings lets them
+ * change their mind either way. The chapter gates read this row on every
+ * write, so a withdrawal takes effect on the next chapter, not the next
+ * release.
+ */
+export async function setNamingPermission(
+  db: SupabaseClient,
+  userId: string,
+  personId: string,
+  opts: { mayName: boolean; proseReference: string | null },
+): Promise<void> {
+  const { error } = await db
+    .from("memory_people")
+    .update({
+      may_name_in_prose: opts.mayName,
+      prose_reference: opts.proseReference,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", personId)
+    .eq("user_id", userId);
+  if (error) throw new Error(`naming permission update failed: ${error.code ?? error.message}`);
+}

@@ -37,7 +37,7 @@ export default async function SignIn({
   const { sent, problem } = await searchParams;
 
   return (
-    <main style={wrap}>
+    <main style={wrap} className="rise">
       <h1 style={title}>Sofar</h1>
       {sent ? (
         <p style={lede}>

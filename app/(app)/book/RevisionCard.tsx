@@ -58,7 +58,7 @@ export default function RevisionCard({
         </button>
       ) : (
         <>
-          <div style={S.proposed}>
+          <div style={S.proposed} className="unfold">
             {proposed
               .split(/\n\s*\n/)
               .map((p) => p.trim())

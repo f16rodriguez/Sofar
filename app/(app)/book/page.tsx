@@ -68,7 +68,7 @@ export default async function BookPage() {
 
   if (chapters.length === 0) {
     return (
-      <main style={S.wrap}>
+      <main style={S.wrap} className="rise">
         <h1 style={S.bookTitle}>{profile?.book_name ?? "Your book"}</h1>
         <p style={S.empty}>
           Nothing written yet. The first chapters arrive after your interview.
@@ -78,7 +78,7 @@ export default async function BookPage() {
   }
 
   return (
-    <main style={S.wrap}>
+    <main style={S.wrap} className="rise">
       <header style={S.masthead}>
         <h1 style={S.bookTitle}>{profile?.book_name ?? "Your book"}</h1>
         <p style={S.meta}>
@@ -87,10 +87,14 @@ export default async function BookPage() {
         </p>
       </header>
 
-      {chapters.map((chapter) => {
+      {chapters.map((chapter, i) => {
         const revision = pending.get(chapter.id);
         return (
-          <article key={chapter.id} style={S.chapter}>
+          <article
+            key={chapter.id}
+            className="rise"
+            style={{ ...S.chapter, animationDelay: `${Math.min(i, 6) * 70}ms` }}
+          >
             <div style={S.ribbon} aria-hidden="true" />
             {chapter.kind === "prologue" ? (
               <div style={S.label}>Prologue</div>
