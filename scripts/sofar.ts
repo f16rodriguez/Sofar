@@ -18,6 +18,7 @@ import { createAnswer } from "../lib/repo";
 import { extract, clean } from "../lib/pipeline/extract";
 import { merge } from "../lib/pipeline/merge";
 import * as memory from "../lib/memory";
+import { proposeRevision } from "../lib/pipeline/revision";
 import {
   findAngles,
   writeChapter,
@@ -414,6 +415,50 @@ async function run() {
     console.log(result.draft.body_md);
     console.log("");
     console.log("─".repeat(70));
+  }
+
+  // --- revision proposer (SPEC §5.5) --------------------------------------
+  // New memory has landed. Does any chapter the person already read no longer
+  // hold? Proposed, never applied.
+  const { data: canon } = await db
+    .from("chapters")
+    .select("id, title, body_md, source_memory_ids")
+    .eq("user_id", userId)
+    .eq("status", "canon");
+
+  const newIds = new Set(merged.placed.map((r) => r.id));
+  const rowById = new Map(placedRows.map((r) => [r.id, r]));
+
+  for (const chapter of canon ?? []) {
+    const sourceIds: string[] = chapter.source_memory_ids ?? [];
+    const sourceRows = sourceIds
+      .map((id) => rowById.get(id))
+      .filter((r): r is MemoryRow => Boolean(r));
+    // Only rows this run produced that the chapter does not already cite.
+    const newRows = placedRows.filter(
+      (r) => newIds.has(r.id) && !sourceIds.includes(r.id),
+    );
+    if (sourceRows.length === 0 || newRows.length === 0) continue;
+
+    const result = await proposeRevision(db, {
+      userId,
+      chapter: {
+        id: chapter.id,
+        title: chapter.title,
+        body_md: chapter.body_md,
+        source_memory_ids: sourceIds,
+      },
+      newRows,
+      sourceRows,
+      people: personRows,
+      foundations,
+      triggerAnswerIds: [answerId],
+    });
+    console.log(
+      result.proposed
+        ? `revision proposed for "${chapter.title}": ${result.rationale}`
+        : `no revision for "${chapter.title}" — ${result.reason}`,
+    );
   }
 
   if (sessionArg) {

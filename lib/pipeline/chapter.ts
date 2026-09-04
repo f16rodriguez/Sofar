@@ -312,6 +312,32 @@ export function excise(draft: ChapterDraft, issues: ValidationIssue[]): ChapterD
   return { ...draft, body_md: body.join("\n\n"), paragraph_sources: sources };
 }
 
+/**
+ * The entailment gate, usable outside writeChapter — a proposed revision is
+ * prose and is held to the same standard as a chapter.
+ */
+export async function checkEntailmentFor(
+  draft: ChapterDraft,
+  rows: MemoryRow[],
+  people: PersonRow[],
+  foundations: Foundations,
+  opts: { story: string },
+): Promise<ValidationIssue[]> {
+  const sources = new Map<string, string>();
+  const show = (q: string) => fixKeyboardSlips(q.replace(/\s+/g, " ").trim());
+  for (const r of rows) {
+    sources.set(
+      r.id,
+      r.quote ? `(${r.kind}) ${r.text} | HIS WORDS: "${show(r.quote)}"` : `(${r.kind}) ${r.text}`,
+    );
+  }
+  for (const p of people) {
+    const name = p.may_name_in_prose ? p.label : (p.prose_reference ?? p.label);
+    sources.set(p.id, `(person) ${name} — ${p.relationship ?? "unstated"}.`);
+  }
+  return checkEntailment(draft, sources, foundations, opts.story);
+}
+
 function describePeople(people: PersonRow[]): string {
   return people
     .map((p) => {

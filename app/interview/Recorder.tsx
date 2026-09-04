@@ -144,6 +144,9 @@ export default function Recorder() {
       <div style={S.wrap}>
         <h1 style={S.question}>That&rsquo;s everything.</h1>
         <p style={S.lede}>Your chapters are being written.</p>
+        <a href="/book" style={{ ...S.primary, textDecoration: "none" }}>
+          The book so far
+        </a>
       </div>
     );
   }
