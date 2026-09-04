@@ -21,6 +21,7 @@ structured memory from transcripts and writes a book that revises itself.
 | M2 — interview engine | Plumbing complete: magic-link auth, Block 0 form, browser voice capture, transcription, the §4 state machine, session→pipeline. Blocked on the founder's script revision (D4) and an end-to-end voice test |
 | M3 — the Book | Book screen, canon on first read, revision proposer with accept/decline, "So far." generator (`npm run sofar -- so-far --user <id>`). Needs a live test of the propose→decline path and a first So far run |
 | M4–M7 | Not started |
+| Deploy | Live at https://sofar-book.netlify.app (Netlify, upload deploys). Deploy with `scripts/deploy.sh <proxy-url>` — it uploads a clean export of HEAD, never the working directory |
 
 ## Provisioned infrastructure
 
