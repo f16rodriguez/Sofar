@@ -26,8 +26,45 @@ function parseCookies(header: string | null): { name: string; value: string }[] 
 const json = (body: unknown, status: number, headers: Record<string, string> = {}) =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", ...headers } });
 
+/**
+ * ?debug=1 — what this function can see: env presence (booleans only), where
+ * the fonts are, and whether the renderer runs at all, with its error text.
+ * Netlify function logs are not reachable from the tooling that deploys
+ * this, so the function reports on itself. Nothing secret is returned.
+ */
+async function diagnostics(): Promise<Record<string, unknown>> {
+  const fs = await import("node:fs");
+  const path = await import("node:path");
+  const candidates = [
+    path.join(process.cwd(), "assets", "fonts", "Newsreader-400.ttf"),
+    path.join(process.cwd(), "public", "fonts", "Newsreader-400.ttf"),
+  ];
+  const out: Record<string, unknown> = {
+    node: process.version,
+    cwd: process.cwd(),
+    env: Object.fromEntries(
+      ["NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_ANON_KEY", "SUPABASE_SERVICE_ROLE_KEY", "SITE_URL", "URL"].map((k) => [k, Boolean(process.env[k])]),
+    ),
+    fonts: Object.fromEntries(candidates.map((c) => [c, fs.existsSync(c)])),
+  };
+  try {
+    const t0 = Date.now();
+    const pdf = await renderBookPdf({
+      bookName: "Diagnostics",
+      chapters: [{ number: 1, title: "One", kind: "chapter", body_md: "A single line." }],
+    });
+    out.render = { ok: true, bytes: pdf.byteLength, ms: Date.now() - t0 };
+  } catch (err) {
+    out.render = { ok: false, error: err instanceof Error ? `${err.name}: ${err.message}` : String(err), stack: err instanceof Error ? (err.stack ?? "").split("\n").slice(0, 6) : undefined };
+  }
+  return out;
+}
+
 export default async (request: Request) => {
   try {
+    if (new URL(request.url).searchParams.get("debug") === "1") {
+      return json(await diagnostics(), 200);
+    }
     const cookies = parseCookies(request.headers.get("cookie"));
     const supabase = createServerClient(requireEnv("NEXT_PUBLIC_SUPABASE_URL"), requireEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY"), {
       cookies: { getAll: () => cookies, setAll: () => {} },
