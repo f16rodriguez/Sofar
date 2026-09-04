@@ -4,6 +4,7 @@
 import { redirect } from "next/navigation";
 import { authClient, currentUser, isInvited } from "@/lib/auth";
 import { headers } from "next/headers";
+import { log } from "@/lib/log";
 
 export const metadata = { title: "Sofar — Sign in" };
 
@@ -21,6 +22,9 @@ async function sendLink(formData: FormData) {
     email,
     options: { emailRedirectTo: `${host}/auth/callback` },
   });
+  // The person sees "that didn't send"; the cause has to be findable. Name
+  // and status only — never the address.
+  if (error) log.error("signin.send", error, { status: error.status ?? null });
   redirect(error ? "/signin?problem=send" : "/signin?sent=1");
 }
 
