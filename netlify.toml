@@ -25,8 +25,9 @@
   node_bundler = "esbuild"
 
 [functions."export-pdf"]
-  included_files = ["assets/fonts/*"]
-  # react-pdf's pdfkit resolves its standard fonts and colour profile through
-  # its own package.json (imports, import.meta.url), which a flat bundle
-  # breaks. Shipped as real node_modules inside the function instead.
+  # react-pdf ships as real node_modules inside the function: its pdfkit
+  # resolves standard fonts and a colour profile by name at run time
+  # (#standard-fonts/Helvetica, import.meta.url), which a flat bundle and a
+  # traced copy both miss. The dynamic files are included by glob.
   external_node_modules = ["@react-pdf/renderer"]
+  included_files = ["assets/fonts/*", "node_modules/pdfkit/js/**"]
