@@ -11,7 +11,8 @@ import { serviceClient } from "@/lib/supabase";
 import { authClient, requireUser, Unauthorized } from "@/lib/auth";
 import { enqueueAccountDeletion } from "@/lib/jobs";
 import { log } from "@/lib/log";
-import { allow, tooMany, LIMITS } from "@/lib/ratelimit";
+import { allow, LIMITS } from "@/lib/ratelimit";
+import { tooMany } from "@/lib/ratelimit-response";
 
 export const runtime = "nodejs";
 

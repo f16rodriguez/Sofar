@@ -12,7 +12,8 @@ import { requireUser, Unauthorized } from "@/lib/auth";
 import { recordAnswer, nextTurn, saveState, loadSeeds } from "@/lib/interview/session";
 import type { SessionState } from "@/lib/interview/machine";
 import { log } from "@/lib/log";
-import { allow, tooMany, LIMITS } from "@/lib/ratelimit";
+import { allow, LIMITS } from "@/lib/ratelimit";
+import { tooMany } from "@/lib/ratelimit-response";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;

@@ -7,7 +7,8 @@ import { serviceClient } from "@/lib/supabase";
 import { requireUser, Unauthorized } from "@/lib/auth";
 import { decideRevision } from "@/lib/pipeline/revision";
 import { log } from "@/lib/log";
-import { allow, tooMany, LIMITS } from "@/lib/ratelimit";
+import { allow, LIMITS } from "@/lib/ratelimit";
+import { tooMany } from "@/lib/ratelimit-response";
 
 export const runtime = "nodejs";
 

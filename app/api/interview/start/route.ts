@@ -9,7 +9,8 @@ import { serviceClient } from "@/lib/supabase";
 import { requireUser, ensureProfile, Unauthorized } from "@/lib/auth";
 import { startSession, loadSeeds, nextTurn } from "@/lib/interview/session";
 import { log } from "@/lib/log";
-import { allow, tooMany, LIMITS } from "@/lib/ratelimit";
+import { allow, LIMITS } from "@/lib/ratelimit";
+import { tooMany } from "@/lib/ratelimit-response";
 
 export const runtime = "nodejs";
 

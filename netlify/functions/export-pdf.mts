@@ -70,6 +70,9 @@ export default async (request: Request) => {
   }
 };
 
+// A custom path is served there and only there (the default
+// /.netlify/functions/ path is switched off by it), and it is routed before
+// the Next handler's catch-all — verified in production.
 export const config: Config = {
   path: "/api/export-pdf",
 };

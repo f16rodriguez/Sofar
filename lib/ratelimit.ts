@@ -5,9 +5,12 @@
 //
 // Best effort by design: two requests racing on the same window may both
 // pass. The limit is a cap on abuse, not an accounting system.
+//
+// No Next import here: the standalone Netlify functions share this module,
+// and next/server is not in their bundle. The 429 response lives in
+// lib/ratelimit-response.ts.
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { NextResponse } from "next/server";
 
 export interface LimitResult {
   allowed: boolean;
@@ -45,14 +48,6 @@ export async function allow(
 
   await db.from("rate_limits").update({ count: count + 1 }).eq("key", key);
   return { allowed: true, remaining: opts.limit - count - 1, retryAfterSeconds: 0 };
-}
-
-/** The 429 a route returns when a limit holds. */
-export function tooMany(result: LimitResult): NextResponse {
-  return NextResponse.json(
-    { error: "too many requests", retryAfterSeconds: result.retryAfterSeconds },
-    { status: 429, headers: { "Retry-After": String(result.retryAfterSeconds) } },
-  );
 }
 
 /** Per-action limits in one place, so they can be read and argued about. */

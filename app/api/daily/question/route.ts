@@ -6,7 +6,8 @@ import { NextResponse } from "next/server";
 import { serviceClient } from "@/lib/supabase";
 import { requireUser, Unauthorized } from "@/lib/auth";
 import { generateDailyQuestion } from "@/lib/daily/question";
-import { allow, tooMany } from "@/lib/ratelimit";
+import { allow } from "@/lib/ratelimit";
+import { tooMany } from "@/lib/ratelimit-response";
 import { log } from "@/lib/log";
 
 export const runtime = "nodejs";

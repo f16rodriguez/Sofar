@@ -19,7 +19,7 @@ export async function GET(request: Request) {
   try {
     await requireUser();
     const origin = siteOrigin(request.headers, request.url);
-    const upstream = await fetch(`${origin}/.netlify/functions/export-pdf`, {
+    const upstream = await fetch(`${origin}/api/export-pdf`, {
       headers: { cookie: request.headers.get("cookie") ?? "" },
       redirect: "manual",
       cache: "no-store",
