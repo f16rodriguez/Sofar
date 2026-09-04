@@ -18,5 +18,15 @@
 [[plugins]]
   package = "@netlify/plugin-nextjs"
 
-# Scheduled functions (daily question cron, audio retention, So far) are added
-# in M4/M6 under netlify/functions with `schedule` config.
+# Standalone functions (netlify/functions): the daily jobs, the daily
+# question, and the PDF export — the last one deliberately outside the Next
+# handler, see lib/export/book-pdf.tsx.
+[functions]
+  node_bundler = "esbuild"
+
+[functions."export-pdf"]
+  included_files = ["assets/fonts/*"]
+  # react-pdf's pdfkit resolves its standard fonts and colour profile through
+  # its own package.json (imports, import.meta.url), which a flat bundle
+  # breaks. Shipped as real node_modules inside the function instead.
+  external_node_modules = ["@react-pdf/renderer"]

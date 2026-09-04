@@ -1,11 +1,17 @@
 // The book as a PDF (SPEC §3.8, M6). react-pdf, no headless browser.
 //
+// Rendered in its own Netlify Function (netlify/functions/export-pdf.mts),
+// never inside the Next server: bundled into that handler, react-pdf crashed
+// the process seconds after every cold start and took the whole site with
+// it. Nothing under app/ may import this module.
+//
 // Title page (book_name or blank), then chapters in reading order — prologue,
 // chapters by number, "So far." last. Newsreader for the text, Instrument
 // Sans for the chrome, embedded from assets/fonts so the file reads the same
 // on every device. Free on every plan, including cancelled: the book is the
 // person's whether they stay or not.
 
+import fs from "node:fs";
 import path from "node:path";
 import React from "react";
 import {
@@ -34,22 +40,40 @@ const ROMAN = ["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", 
 const numeral = (n: number | null) => (n === null || n <= 0 ? "" : (ROMAN[n] ?? String(n)));
 
 let fontsRegistered = false;
+
+/**
+ * Where the TTFs are. On disk when the function bundle carries them
+ * (netlify.toml included_files, or a local checkout); otherwise the copies
+ * served from /fonts on the site itself, which react-pdf fetches once per
+ * process.
+ */
+function fontSource(file: string): string {
+  const candidates = [
+    path.join(process.cwd(), "assets", "fonts", file),
+    path.join(process.cwd(), "public", "fonts", file),
+  ];
+  for (const c of candidates) {
+    if (fs.existsSync(c)) return c;
+  }
+  const origin = (process.env.SITE_URL || process.env.URL || "http://localhost:3000").replace(/\/+$/, "");
+  return `${origin}/fonts/${file}`;
+}
+
 function registerFonts() {
   if (fontsRegistered) return;
-  const dir = path.join(process.cwd(), "assets", "fonts");
   Font.register({
     family: "Newsreader",
     fonts: [
-      { src: path.join(dir, "Newsreader-400.ttf"), fontWeight: 400 },
-      { src: path.join(dir, "Newsreader-400-italic.ttf"), fontWeight: 400, fontStyle: "italic" },
-      { src: path.join(dir, "Newsreader-500.ttf"), fontWeight: 500 },
+      { src: fontSource("Newsreader-400.ttf"), fontWeight: 400 },
+      { src: fontSource("Newsreader-400-italic.ttf"), fontWeight: 400, fontStyle: "italic" },
+      { src: fontSource("Newsreader-500.ttf"), fontWeight: 500 },
     ],
   });
   Font.register({
     family: "Instrument Sans",
     fonts: [
-      { src: path.join(dir, "InstrumentSans-400.ttf"), fontWeight: 400 },
-      { src: path.join(dir, "InstrumentSans-500.ttf"), fontWeight: 500 },
+      { src: fontSource("InstrumentSans-400.ttf"), fontWeight: 400 },
+      { src: fontSource("InstrumentSans-500.ttf"), fontWeight: 500 },
     ],
   });
   // No hyphenation: a broken word in a book about a life reads as a typo.

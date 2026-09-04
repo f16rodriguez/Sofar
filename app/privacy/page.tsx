@@ -5,6 +5,10 @@
 import Link from "next/link";
 import "../landing.css";
 
+// Rendered per request: the prerendered copy of this page came back 502 from
+// Netlify's static path on every hit while every dynamic page was fine.
+export const dynamic = "force-dynamic";
+
 export const metadata = {
   title: "Sofar — Privacy",
   description: "What Sofar keeps, who can see it, and how to take it with you.",
