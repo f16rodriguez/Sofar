@@ -10,10 +10,12 @@
     "accept:m0": "tsx scripts/m0-accept.ts",
     "sofar": "tsx scripts/sofar.ts",
     "interview": "tsx scripts/interview.ts",
-    "test:machine": "tsx scripts/test-machine.ts"
+    "test:machine": "tsx scripts/test-machine.ts",
+    "accept:m3": "tsx scripts/m3-accept.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.123.0",
+    "@react-pdf/renderer": "^4.9.0",
     "@supabase/ssr": "^0.12.5",
     "@supabase/supabase-js": "^2.58.0",
     "next": "^15.5.0",
@@ -22,6 +24,7 @@
     "zod": "^4.1.0"
   },
   "devDependencies": {
+    "@netlify/functions": "^6.0.0",
     "@types/node": "^24.0.0",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",

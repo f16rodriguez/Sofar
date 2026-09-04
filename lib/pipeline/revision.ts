@@ -138,3 +138,72 @@ export async function proposeRevision(
 
   return { proposed: true, rationale: verdict.rationale_one_line };
 }
+
+// --- the decision -----------------------------------------------------------
+// Accepting replaces the chapter body and bumps its version; the chapter
+// stays canon. Declining marks the proposal declined and touches nothing
+// else — not the chapter, not the memory that triggered it. That asymmetry
+// is M3's acceptance test, and it is why there is no third option here.
+
+export type Decision = "accepted" | "declined";
+
+export type DecideResult =
+  | { ok: true; status: Decision }
+  | { ok: false; reason: "not found" | "already decided" };
+
+export async function decideRevision(
+  db: SupabaseClient,
+  userId: string,
+  revisionId: string,
+  decision: Decision,
+): Promise<DecideResult> {
+  const { data: revision, error } = await db
+    .from("chapter_revisions")
+    .select("id, chapter_id, proposed_body_md, status")
+    .eq("id", revisionId)
+    .eq("user_id", userId)
+    .single();
+  if (error || !revision) return { ok: false, reason: "not found" };
+  if (revision.status !== "proposed") return { ok: false, reason: "already decided" };
+
+  const decidedAt = new Date().toISOString();
+
+  if (decision === "declined") {
+    // Nothing else moves. This is the whole of a decline.
+    const { error: e } = await db
+      .from("chapter_revisions")
+      .update({ status: "declined", decided_at: decidedAt })
+      .eq("id", revisionId);
+    if (e) throw new Error(`revision decline failed: ${e.code ?? e.message}`);
+    return { ok: true, status: "declined" };
+  }
+
+  const { data: chapter } = await db
+    .from("chapters")
+    .select("version")
+    .eq("id", revision.chapter_id)
+    .eq("user_id", userId)
+    .single();
+
+  const body = revision.proposed_body_md as string;
+  const { error: ce } = await db
+    .from("chapters")
+    .update({
+      body_md: body,
+      version: (chapter?.version ?? 1) + 1,
+      word_count: body.split(/\s+/).filter(Boolean).length,
+      status: "canon",
+      canon_at: decidedAt,
+    })
+    .eq("id", revision.chapter_id)
+    .eq("user_id", userId);
+  if (ce) throw new Error(`revision apply failed: ${ce.code ?? ce.message}`);
+
+  const { error: re } = await db
+    .from("chapter_revisions")
+    .update({ status: "accepted", decided_at: decidedAt })
+    .eq("id", revisionId);
+  if (re) throw new Error(`revision accept failed: ${re.code ?? re.message}`);
+
+  return { ok: true, status: "accepted" };
+}
