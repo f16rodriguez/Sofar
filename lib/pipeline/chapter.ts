@@ -11,6 +11,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { complete, loadPrompt, MODELS, type ModelTier } from "../llm";
+import { fixKeyboardSlips } from "./extract";
 import {
   ChapterSchema,
   EntailmentSchema,
@@ -334,6 +335,10 @@ export async function writeChapter(
   ]);
   // 1 generation + 2 repairs, then mechanical excision. Each Opus repair is
   // real money and the third rarely fixed what the second could not.
+  // The stored quote stays verbatim — provenance is matched against it. What
+  // the writer reads is corrected, so a keyboard slip cannot reach the page
+  // through the one field that was deliberately left untouched.
+  const shown = (q: string) => fixKeyboardSlips(q.replace(/\s+/g, " ").trim());
   const maxAttempts = opts.maxAttempts ?? 3;
   const rejected: ValidationIssue[][] = [];
 
@@ -343,7 +348,7 @@ export async function writeChapter(
     sources.set(
       r.id,
       r.quote
-        ? `(${r.kind}) ${r.text} | HIS WORDS: "${r.quote.replace(/\s+/g, " ").trim()}"`
+        ? `(${r.kind}) ${r.text} | HIS WORDS: "${shown(r.quote)}"`
         : `(${r.kind}) ${r.text}`,
     );
   }
@@ -357,7 +362,7 @@ export async function writeChapter(
   const rowsBlock = opts.rows
     .map((r) =>
       r.quote
-        ? `- [${r.id}] (${r.kind}) ${r.text}\n      HIS WORDS: "${r.quote.replace(/\s+/g, " ").trim()}"`
+        ? `- [${r.id}] (${r.kind}) ${r.text}\n      HIS WORDS: "${shown(r.quote)}"`
         : `- [${r.id}] (${r.kind}) ${r.text}`,
     )
     .join("\n");

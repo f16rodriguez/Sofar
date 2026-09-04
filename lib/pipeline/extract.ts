@@ -112,7 +112,7 @@ const ORDINARY = new Set(
   ("and the but that this with from they them was were have has had not you your for are its what when where which who how why all can will would could should been being there their then than into out about just because some more most one two first last next time day year like really very still what's don't didn't").split(" "),
 );
 
-function fixKeyboardSlips(text: string): string {
+export function fixKeyboardSlips(text: string): string {
   return text.replace(/\b[A-Za-z']{2,}\b/g, (word) => {
     const lower = word.toLowerCase();
     if (word === lower || word === word.toUpperCase()) return word;

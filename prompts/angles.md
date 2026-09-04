@@ -37,6 +37,13 @@ three, and the bar for each is high:
   chapter ends on. A day's events in sequence are not a turn. If the only
   available ending is "that was the day," there is no turn.
 
+  A test that settles it: say the turn out loud in one clause, without using
+  the word "and". "He chose the villa his father would not walk into" is a
+  turn. "He woke late, ate, got gas and ran a fever" is a day. If the only
+  way to state it is a list joined by "and", mark it not writable — a writer
+  given a day with no turn will fill the space with observations about the
+  record, which is the worst prose this system produces.
+
 If it holds all three, it is a chapter. If it does not, it is a question.
 Marking a thin angle writable produces a thin chapter, which is the failure
 this pass exists to prevent.
