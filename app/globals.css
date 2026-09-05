@@ -266,3 +266,40 @@ button:active { transform: scale(0.985); }
 .manuscript-title a { color: var(--ink); text-decoration: none; }
 .manuscript-title a:hover { text-decoration: underline; }
 .manuscript-meta { grid-column: 2; font-family: var(--font-chrome); font-size: 13px; color: var(--muted); }
+
+/* --- add to home screen --------------------------------------------------
+   A strip at the foot of the page, not a modal: it is an offer, and an offer
+   should never be the thing standing between a person and their book. */
+.install {
+  position: sticky;
+  bottom: 0;
+  margin-top: auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+  padding: 14px clamp(16px, 5vw, 24px);
+  background: var(--parch);
+  border-top: 0.5px solid #c9b9b0;
+}
+.install-text {
+  font-family: var(--font-chrome);
+  font-size: 14px;
+  line-height: 1.5;
+  color: #3d3932;
+  margin: 0;
+  max-width: 34rem;
+}
+.install-actions { display: flex; align-items: center; gap: 12px; }
+.install-dismiss {
+  font-family: var(--font-chrome);
+  font-size: 14px;
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 10px 4px;
+}
+.install-dismiss:hover { color: var(--ink); }
+.app { display: flex; flex-direction: column; min-height: 100dvh; }
