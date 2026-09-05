@@ -67,6 +67,29 @@ Nothing under `app/` may import `lib/export/` — see the crash above.
 | `npm run accept:m6` | delete leaves zero rows and objects; 60-day audio deletion | – |
 | `npm run test:export` | PDF end to end (`SOFAR_BASE_URL=https://sofar-book.netlify.app` for live) | – |
 | `npm run test:machine` | interview state machine | – |
+| `npm run test:auth` | a real magic link → session → a screen opens; spent and forged links refused | – |
+| `npm run smoke` | every screen and endpoint, signed in and out, against a live deploy | – |
+| `npm run test:meta` | the interview filter refuses meta-talk and keeps real material | – |
+
+Live checks take `SOFAR_BASE_URL=https://sofar-book.netlify.app`. Run
+`test:auth` and `smoke` after every deploy — a green `/api/health` says the
+server booted, not that a person can sign in.
+
+## Handing someone a sign-in link
+
+`npm run signin-link -- someone@example.com` prints a link that works on any
+device. The emailed link goes through Supabase's verify endpoint and comes
+back as a PKCE code, which only completes in the browser that requested it —
+mail on a phone does not guarantee that browser. To fix the emailed ones,
+Supabase → Authentication → Email Templates → Magic Link:
+
+    <a href="{{ .SiteURL }}/auth/callback?token_hash={{ .TokenHash }}&type=magiclink">Log in</a>
+
+## Housekeeping
+
+`npm run cleanup:threads -- --user <id>` reports interview talk and duplicate
+threads in a record, and only acts with `--apply`. Retiring is reversible: a
+thread is marked resolved, never deleted.
 
 Every paid run prints `RUN COST` (D5). The meter charges a reply the SDK
 could not parse, so a failed run never reports $0.
