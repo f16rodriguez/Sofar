@@ -44,6 +44,13 @@ async function main() {
     check("the link redirects into the app", res.status === 307 || res.status === 302, `${res.status} → ${location}`);
     check("it does not bounce back to sign-in", !location.includes("/signin"), location);
     check("a new person lands on foundations", location.includes("/onboarding"), location);
+    // The token is spent by now, but it should not follow anyone into their
+    // address bar or their history.
+    check(
+      "the sign-in token does not travel on to the page",
+      !location.includes("token_hash") && !location.includes(link.properties.hashed_token),
+      location,
+    );
     check("a session cookie is issued", cookie.includes("-auth-token"), cookie ? `${cookie.split(";").length} cookie(s)` : "none");
 
     // The session it handed back has to actually open a screen.

@@ -39,6 +39,10 @@ export async function GET(request: Request) {
   const tokenHash = url.searchParams.get("token_hash");
   const type = url.searchParams.get("type") ?? "magiclink";
 
+  // Every destination carries a query of its own, deliberately. On Netlify a
+  // redirect to a bare path inherits the request's own search params, which
+  // would carry the sign-in token into the address bar and the browser
+  // history of the page it lands on. A target with a query replaces them.
   const to = (path: string) => NextResponse.redirect(new URL(path, origin));
   if (!code && !tokenHash) return to("/signin?problem=link");
 
@@ -85,7 +89,7 @@ export async function GET(request: Request) {
       .maybeSingle();
     const ready = Boolean(data?.pronoun && data?.birthplace && data?.recording_consent_at);
 
-    const response = to(ready ? "/interview" : "/onboarding");
+    const response = to(ready ? "/interview?from=signin" : "/onboarding?from=signin");
     for (const c of pending) response.cookies.set(c.name, c.value, c.options);
     if (pending.length === 0) log.error("auth.callback", new Error("verified but no session cookie was issued"));
     return response;
