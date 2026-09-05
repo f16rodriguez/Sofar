@@ -18,9 +18,36 @@ export interface LimitResult {
   retryAfterSeconds: number;
 }
 
+export interface LimitOptions {
+  action: string;
+  subject: string;
+  limit: number;
+  windowSeconds: number;
+  now?: Date;
+}
+
+/**
+ * The limiter guards cost, not correctness, so it fails open: if the counter
+ * cannot be reached — no service role in this environment, a transient
+ * database error — the request proceeds. A missing key once turned the
+ * sign-in page into a server error because the limiter threw before the
+ * magic link was ever sent; a cap on spending must never be the thing that
+ * takes a page down.
+ */
+export async function allowSafe(
+  makeDb: () => SupabaseClient,
+  opts: LimitOptions,
+): Promise<LimitResult> {
+  try {
+    return await allow(makeDb(), opts);
+  } catch {
+    return { allowed: true, remaining: -1, retryAfterSeconds: 0 };
+  }
+}
+
 export async function allow(
   db: SupabaseClient,
-  opts: { action: string; subject: string; limit: number; windowSeconds: number; now?: Date },
+  opts: LimitOptions,
 ): Promise<LimitResult> {
   const now = opts.now ?? new Date();
   const key = `${opts.action}:${opts.subject}`;

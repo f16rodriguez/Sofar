@@ -7,7 +7,7 @@ import { headers } from "next/headers";
 import { log } from "@/lib/log";
 import { siteOrigin } from "@/lib/site";
 import { serviceClient } from "@/lib/supabase";
-import { allow, LIMITS } from "@/lib/ratelimit";
+import { allowSafe, LIMITS } from "@/lib/ratelimit";
 
 export const metadata = { title: "Sofar — Sign in" };
 
@@ -20,7 +20,7 @@ async function sendLink(formData: FormData) {
   if (!isInvited(email)) redirect("/signin?problem=invite");
   // Five links an hour per address. Supabase has its own cap; this one is
   // ours, and it answers with a sentence instead of a 429.
-  const gate = await allow(serviceClient(), {
+  const gate = await allowSafe(serviceClient, {
     action: "signin_link",
     subject: email.toLowerCase(),
     ...LIMITS.signin_link,
