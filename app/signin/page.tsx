@@ -81,6 +81,12 @@ export default async function SignIn({
           {problem === "send" && (
             <p style={problemStyle}>That didn&rsquo;t send. Check the address and try again.</p>
           )}
+          {problem === "link" && (
+            <p style={problemStyle}>
+              That link has been used already, or it expired. Send yourself a fresh one — links
+              last an hour, and each one works once.
+            </p>
+          )}
           {problem === "slow" && (
             <p style={problemStyle}>
               That&rsquo;s a few links in a row. Check your inbox and spam; the last one still works.
