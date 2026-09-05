@@ -18,7 +18,9 @@
     "audit:logs": "tsx scripts/audit-logs.ts",
     "smoke": "tsx scripts/smoke.ts",
     "test:auth": "tsx scripts/auth-test.ts",
-    "signin-link": "tsx scripts/signin-link.ts"
+    "signin-link": "tsx scripts/signin-link.ts",
+    "test:meta": "tsx scripts/test-meta.ts",
+    "cleanup:threads": "tsx scripts/cleanup-threads.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.123.0",

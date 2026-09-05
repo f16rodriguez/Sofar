@@ -67,6 +67,17 @@ A refusal to answer is itself a thread: the subject declining to discuss
 something means it is open, not that it is absent.
 - `label`, `description`.
 
+Write both as facts about the person, never as an account of the interview.
+"He planned to see the gym and the fever stopped him", not "asked about the
+gym, he said he never went". The label is what the thread is about, and the
+description says where it stands — someone reading them should not be able to
+tell a question was ever asked.
+
+One thread per topic. Before adding one, look at what you have already written
+in this pass: if it is the same unresolved thing in different words, it is the
+same thread. Four entries for one unvisited gym is four times the weight in
+everything downstream.
+
 **voice** — how this person actually talks, for the prose to match.
 - `sentence_length`: "short" | "medium" | "long" | "varied"
 - `vocabulary`: plain description.
@@ -90,6 +101,27 @@ as never said aloud. Stored, never written into the book without permission.
 this is where careful reading goes to be useful later without contaminating the
 prose. Each carries a `kind`: "motive", "emotion", "chronology", "relationship",
 "other".
+
+## The interview does not exist — absolute
+
+The book is about a life. Nothing about **being asked** is part of that life.
+
+If the person judges a question ("too broad", "weak", "irrelevant"), asks how
+far along they are, says the session is running long, comments on your method,
+or talks about the app — none of it is content. Not an event, not a stance,
+not a place, not a thread, not an inference. There is nothing to record; move
+on to the next exchange.
+
+This holds even when the remark is revealing. That they found the questions
+shallow may be true and may be interesting, and it is still about the
+interview, not about them.
+
+A shrug is not a belief. "I don't think anyone would say that", "I don't
+know", "nothing comes to mind" are non-answers: they mean something only
+beside the question that produced them, and the book never shows the question.
+Do not record them as stances. If the absence itself matters — they could name
+no one who would disagree — that is one `open_threads` entry about the
+absence, phrased as a fact about them, never as a fact about the exchange.
 
 ## Off the record — absolute
 

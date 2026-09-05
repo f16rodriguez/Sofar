@@ -14,10 +14,17 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { complete, loadPrompt } from "../llm";
 import * as memory from "../memory";
+import { isAboutTheInterview, isNonAnswerStance } from "./meta";
 import { SameEntitySchema, type Extraction } from "./schema";
 
 const CERTAIN = 0.85; // at or above: same thing, no model call
 const PLAUSIBLE = 0.5; // between: ask the model
+// Threads are free restatements of each other, so the same thread scores far
+// lower than the same person or event does. Measured against a real record:
+// one unvisited gym had arrived four times, the same illness four times, at
+// scores between 0.35 and 0.5 — under the old floor, so the model was never
+// asked and four rows were written.
+const THREADS_PLAUSIBLE = 0.33;
 
 function tokens(s: string): Set<string> {
   return new Set(
@@ -29,7 +36,7 @@ function tokens(s: string): Set<string> {
   );
 }
 
-function similarity(a: string, b: string): number {
+export function similarity(a: string, b: string): number {
   const ta = tokens(a);
   const tb = tokens(b);
   if (ta.size === 0 || tb.size === 0) return a.trim() === b.trim() ? 1 : 0;
@@ -48,13 +55,21 @@ async function resolve(
   item: string,
   existing: Existing[],
   kind: string,
+  /**
+   * How much overlap is worth a second opinion. Threads restate each other
+   * loosely — "The gym he never saw" and "The gym he didn't get to" share
+   * barely a third of their words and are plainly one thread — so they reach
+   * for the model sooner than a name or an event does. Below this, nothing is
+   * asked and a new row is written.
+   */
+  floor: number = PLAUSIBLE,
 ): Promise<string | null> {
   let best: { row: Existing; score: number } | null = null;
   for (const row of existing) {
     const score = similarity(item, row.text);
     if (!best || score > best.score) best = { row, score };
   }
-  if (!best || best.score < PLAUSIBLE) return null;
+  if (!best || best.score < floor) return null;
   if (best.score >= CERTAIN) return best.row.id;
 
   const verdict = await complete({
@@ -71,6 +86,19 @@ async function resolve(
     maxTokens: 1000,
   });
   return verdict.same ? best.row.id : null;
+}
+
+/** Threads compare on what they are about, not just what they were called. */
+async function loadThreads(db: SupabaseClient, userId: string): Promise<Existing[]> {
+  const { data, error } = await db
+    .from("memory_threads")
+    .select("id, label, description")
+    .eq("user_id", userId);
+  if (error) throw new Error(`load memory_threads failed: ${error.code ?? error.message}`);
+  return (data ?? []).map((r: { id: string; label: string; description: string | null }) => ({
+    id: r.id,
+    text: `${r.label} — ${r.description ?? ""}`,
+  }));
 }
 
 async function load(
@@ -107,6 +135,8 @@ export interface MergeResult {
   memoryIds: string[];
   /** Every row this extraction produced or matched, with its transcript position. */
   placed: PlacedRow[];
+  /** Rows refused as being about the interview rather than about a life. */
+  refused: number;
 }
 
 export async function merge(
@@ -188,10 +218,18 @@ export async function merge(
     bump(created, "places");
   }
 
+  // Rows about being interviewed rather than about a life (lib/pipeline/meta.ts).
+  // Counted, never quoted: SPEC §7 keeps transcript content out of logs.
+  let refused = 0;
+
   // --- events -------------------------------------------------------------
   const eventIds = new Map<string, string>();
   const existingEvents = await load(db, "memory_events", userId, "what");
   for (const event of extraction.events) {
+    if (isAboutTheInterview(event.what, event.where_text, event.outcome)) {
+      refused++;
+      continue;
+    }
     const hit = await resolve(event.what, existingEvents, "event");
     if (hit) {
       eventIds.set(event.what, hit);
@@ -226,6 +264,12 @@ export async function merge(
   const stanceIds = new Map<string, string>();
   const existingStances = await load(db, "memory_stances", userId, "statement");
   for (const stance of extraction.stances) {
+    // A shrug at the question is not a belief, and a belief about the
+    // interview is not a belief about a life.
+    if (isNonAnswerStance(stance.statement) || isAboutTheInterview(stance.statement, stance.rationale)) {
+      refused++;
+      continue;
+    }
     const hit = await resolve(stance.statement, existingStances, "stance");
     if (hit) {
       stanceIds.set(stance.statement, hit);
@@ -281,10 +325,23 @@ export async function merge(
   }
 
   // --- threads: mentioned twice without resolution → increment ------------
-  const existingThreads = await load(db, "memory_threads", userId, "label");
+  // A thread's label is a free restatement — "The gym he never saw", "The gym
+  // he didn't get to" — so a label-only comparison scored them apart and the
+  // record filled with the same thread under four names. The description is
+  // where the sameness actually lives, so both are compared.
+  const existingThreads = await loadThreads(db, userId);
   const now = new Date().toISOString();
   for (const thread of extraction.open_threads) {
-    const hit = await resolve(thread.label, existingThreads, "thread");
+    if (isAboutTheInterview(thread.label, thread.description)) {
+      refused++;
+      continue;
+    }
+    const hit = await resolve(
+      `${thread.label} — ${thread.description ?? ""}`,
+      existingThreads,
+      "thread",
+      THREADS_PLAUSIBLE,
+    );
     if (hit) {
       await memory.bumpThread(db, hit, now);
       bump(matched, "threads");
@@ -301,7 +358,7 @@ export async function merge(
         off_record: thread.off_record,
       },
     ]);
-    existingThreads.push({ id, text: thread.label });
+    existingThreads.push({ id, text: `${thread.label} — ${thread.description ?? ""}` });
     bump(created, "threads");
   }
 
@@ -335,5 +392,5 @@ export async function merge(
     bump(created, "inferred");
   }
 
-  return { created, matched, peopleIds, memoryIds, placed };
+  return { created, matched, peopleIds, memoryIds, placed, refused };
 }

@@ -253,6 +253,9 @@ async function run() {
   const merged = await merge(db, userId, answerId, extraction);
   console.log(`  created: ${JSON.stringify(merged.created)}`);
   console.log(`  matched existing: ${JSON.stringify(merged.matched)}`);
+  if (merged.refused > 0) {
+    console.log(`  refused ${merged.refused} row(s) about the interview itself`);
+  }
 
   // --- gather the memory layer for the editor -----------------------------
   // Every row this transcript produced or matched. The editor reads all of
