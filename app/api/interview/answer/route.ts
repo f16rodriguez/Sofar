@@ -9,7 +9,7 @@
 import { NextResponse } from "next/server";
 import { serviceClient } from "@/lib/supabase";
 import { requireUser, Unauthorized } from "@/lib/auth";
-import { recordAnswer, nextTurn, saveState, loadSeeds } from "@/lib/interview/session";
+import { recordAnswer, nextTurn, saveState, loadSeeds, resolveQuestionId } from "@/lib/interview/session";
 import type { SessionState } from "@/lib/interview/machine";
 import { log } from "@/lib/log";
 import { allow, LIMITS } from "@/lib/ratelimit";
@@ -65,15 +65,23 @@ export async function POST(request: Request) {
       stored = { bytes, mimeType: audio.type || "audio/webm", path };
     }
 
+    const seeds = await loadSeeds(db);
+    // What was asked is recorded with what was said. An answer with no
+    // question is not material the book can use.
+    const questionId =
+      typeof questionText === "string"
+        ? await resolveQuestionId(db, { userId, sessionId, text: questionText, state, seeds })
+        : undefined;
+
     const recorded = await recordAnswer(db, {
       userId,
       sessionId,
+      questionId,
       state,
       audio: stored,
       text: typeof typed === "string" ? typed : undefined,
     });
 
-    const seeds = await loadSeeds(db);
     const turn = await nextTurn(db, {
       state: recorded.state,
       seeds,

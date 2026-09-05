@@ -77,9 +77,75 @@ export async function loadSeeds(db: SupabaseClient): Promise<SeedQuestion[]> {
 }
 
 /**
+ * The question an answer is answering (SPEC §2).
+ *
+ * Without this an answer lands with question_id null, and the pipeline —
+ * which reads a session back as Q/A pairs — writes the book from answers
+ * whose questions are unknown. "Just moving to Dover" means nothing until you
+ * know it followed "what decision changed how your days look".
+ *
+ * A seed is a shared row with no owner, so an answer to one links straight to
+ * it. A follow-up the interviewer invented belongs to this person: it is
+ * recorded against the session, with the seed it grew out of as its parent.
+ */
+export async function resolveQuestionId(
+  db: SupabaseClient,
+  opts: { userId: string; sessionId: string; text: string; state: SessionState; seeds: SeedQuestion[] },
+): Promise<string | undefined> {
+  const asked = opts.text.trim();
+  if (asked.length === 0) return undefined;
+  const same = (a: string, b: string) =>
+    a.replace(/\s+/g, " ").trim().toLowerCase() === b.replace(/\s+/g, " ").trim().toLowerCase();
+
+  const seed = opts.seeds.find((q) => same(q.text, asked));
+  if (seed) return seed.id;
+
+  // Already recorded earlier in this session? Asking twice is one question.
+  const { data: existing } = await db
+    .from("questions")
+    .select("id, text")
+    .eq("user_id", opts.userId)
+    .eq("session_id", opts.sessionId);
+  const hit = (existing ?? []).find((q: { text: string }) => same(q.text, asked));
+  if (hit) return hit.id as string;
+
+  const parent = opts.seeds.find((q) => q.order_idx === opts.state.question_idx);
+  const { data, error } = await db
+    .from("questions")
+    .insert({
+      user_id: opts.userId,
+      session_id: opts.sessionId,
+      kind: "event",
+      block: opts.state.block,
+      text: asked,
+      source: "generated",
+      parent_question_id: parent?.id ?? null,
+      asked_at: new Date().toISOString(),
+    })
+    .select("id")
+    .single();
+  if (error) throw new Error(`resolveQuestionId failed: ${error.code ?? error.message}`);
+  return data.id as string;
+}
+
+/**
  * Record one answer: store the audio path, transcribe, write the transcript
  * through the repository (never directly), and debit the clock.
  */
+/**
+ * The names this person has already said — people and places from their own
+ * record — handed to the transcriber so it does not guess at them.
+ */
+export async function knownNames(db: SupabaseClient, userId: string): Promise<string[]> {
+  const [people, places] = await Promise.all([
+    db.from("memory_people").select("label").eq("user_id", userId),
+    db.from("memory_places").select("label").eq("user_id", userId),
+  ]);
+  const labels = [...(people.data ?? []), ...(places.data ?? [])].map((r: { label: string }) => r.label);
+  // "his brother" is a relationship phrase, not a name; only proper nouns help.
+  return labels.filter((l) => /^[A-Z]/.test(l) && !/^(His|Her|Their|The)\b/.test(l));
+}
+
 export async function recordAnswer(
   db: SupabaseClient,
   opts: {
@@ -102,14 +168,18 @@ export async function recordAnswer(
   let transcript = opts.text ?? "";
   let seconds = 0;
   if (opts.audio) {
-    const result = await transcribe(opts.audio.bytes, opts.audio.mimeType);
+    const result = await transcribe(
+      opts.audio.bytes,
+      opts.audio.mimeType,
+      await knownNames(db, opts.userId),
+    );
     transcript = result.text;
     seconds = result.durationSec;
-    await setTranscript(db, answerId, transcript, result.segments);
+    await setTranscript(db, answerId, transcript, result.segments, result.durationSec);
   } else {
     // Typed answers still cost the clock something; estimate at reading pace.
     seconds = Math.max(5, Math.round(transcript.split(/\s+/).length / 2.5));
-    await setTranscript(db, answerId, transcript, []);
+    await setTranscript(db, answerId, transcript, [], seconds);
   }
 
   return { answerId, transcript, state: spend(opts.state, seconds) };

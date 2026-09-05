@@ -78,12 +78,17 @@ export async function setTranscript(
   id: string,
   transcript: string,
   segments: TranscriptSegment[],
+  durationSec?: number,
 ): Promise<void> {
   const { error } = await db
     .from("answers")
     .update({
       transcript: encode(transcript),
       segments,
+      // Measured by the transcriber (SPEC §2). Retention, the session clock
+      // and any later question about how long someone actually spoke all
+      // read this; nothing else records it.
+      ...(typeof durationSec === "number" ? { duration_sec: Math.round(durationSec) } : {}),
       processed_at: new Date().toISOString(),
     })
     .eq("id", id);
