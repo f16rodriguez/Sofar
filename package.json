@@ -17,7 +17,8 @@
     "accept:m6": "tsx scripts/m6-accept.ts",
     "audit:logs": "tsx scripts/audit-logs.ts",
     "smoke": "tsx scripts/smoke.ts",
-    "test:auth": "tsx scripts/auth-test.ts"
+    "test:auth": "tsx scripts/auth-test.ts",
+    "signin-link": "tsx scripts/signin-link.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.123.0",
