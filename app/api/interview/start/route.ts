@@ -7,7 +7,7 @@
 import { NextResponse } from "next/server";
 import { serviceClient } from "@/lib/supabase";
 import { requireUser, ensureProfile, Unauthorized } from "@/lib/auth";
-import { startSession, loadSeeds, nextTurn } from "@/lib/interview/session";
+import { resumeOrStart, loadSeeds, nextTurn } from "@/lib/interview/session";
 import { log } from "@/lib/log";
 import { allow, LIMITS } from "@/lib/ratelimit";
 import { tooMany } from "@/lib/ratelimit-response";
@@ -41,7 +41,9 @@ export async function POST() {
       );
     }
 
-    const { sessionId, state } = await startSession(db, user.id);
+    // Picks up an interview already under way rather than asking everything
+    // over again (lib/interview/session.ts).
+    const { sessionId, state, resumed } = await resumeOrStart(db, user.id);
     const turn = await nextTurn(db, { state, seeds });
 
     return NextResponse.json({
@@ -50,6 +52,7 @@ export async function POST() {
       announceLast: turn.announce_last,
       secondsLeft: turn.state.seconds_left,
       done: turn.done,
+      resumed,
     });
   } catch (err) {
     if (err instanceof Unauthorized) {

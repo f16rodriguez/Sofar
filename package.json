@@ -20,7 +20,8 @@
     "test:auth": "tsx scripts/auth-test.ts",
     "signin-link": "tsx scripts/signin-link.ts",
     "test:meta": "tsx scripts/test-meta.ts",
-    "cleanup:threads": "tsx scripts/cleanup-threads.ts"
+    "cleanup:threads": "tsx scripts/cleanup-threads.ts",
+    "test:session": "tsx scripts/test-session.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.123.0",

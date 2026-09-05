@@ -4,6 +4,7 @@
 // without the clock: thirty seconds is a guide, not a cap.
 
 import { useCallback, useRef, useState } from "react";
+import { supportedMimeType, micProblem, fileNameFor, AUDIO_BITS_PER_SECOND } from "@/lib/recording";
 
 type Phase = "idle" | "recording" | "sending" | "done" | "error";
 
@@ -22,7 +23,7 @@ export default function TodayAnswer({ questionId }: { questionId: string }) {
       try {
         const form = new FormData();
         form.set("questionId", questionId);
-        if (audio) form.set("audio", audio, "answer.webm");
+        if (audio) form.set("audio", audio, fileNameFor(audio.type));
         else form.set("text", typed);
         const res = await fetch("/api/daily/answer", { method: "POST", body: form });
         if (!res.ok) throw new Error(String(res.status));
@@ -41,20 +42,29 @@ export default function TodayAnswer({ questionId }: { questionId: string }) {
     setProblem(null);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mr = new MediaRecorder(stream, { mimeType: "audio/webm;codecs=opus", audioBitsPerSecond: 32000 });
+      const mimeType = supportedMimeType();
+      const mr = new MediaRecorder(stream, {
+        ...(mimeType ? { mimeType } : {}),
+        audioBitsPerSecond: AUDIO_BITS_PER_SECOND,
+      });
       chunks.current = [];
       mr.ondataavailable = (e) => {
         if (e.data.size > 0) chunks.current.push(e.data);
       };
       mr.onstop = () => {
         stream.getTracks().forEach((t) => t.stop());
-        void send(new Blob(chunks.current, { type: "audio/webm" }));
+        void send(new Blob(chunks.current, { type: mr.mimeType || mimeType || "audio/webm" }));
+      };
+      mr.onerror = () => {
+        stream.getTracks().forEach((t) => t.stop());
+        setProblem("The recording stopped unexpectedly. Try again, or type instead.");
+        setPhase("idle");
       };
       recorder.current = mr;
       mr.start();
       setPhase("recording");
-    } catch {
-      setProblem("No microphone. You can type instead.");
+    } catch (err) {
+      setProblem(micProblem(err));
       setPhase("idle");
     }
   }, [send]);

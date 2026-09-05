@@ -8,6 +8,7 @@
 // goal. It is a recorder with good questions.
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { supportedMimeType, micProblem, fileNameFor, AUDIO_BITS_PER_SECOND } from "@/lib/recording";
 
 type Phase = "idle" | "asking" | "recording" | "sending" | "done" | "error";
 
@@ -15,6 +16,7 @@ export default function Recorder() {
   const [phase, setPhase] = useState<Phase>("idle");
   const [question, setQuestion] = useState("");
   const [announceLast, setAnnounceLast] = useState(false);
+  const [resumed, setResumed] = useState(false);
   const [secondsLeft, setSecondsLeft] = useState(1080);
   const [heard, setHeard] = useState<string | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
@@ -37,6 +39,7 @@ export default function Recorder() {
       setQuestion(data.question);
       setAnnounceLast(data.announceLast);
       setSecondsLeft(data.secondsLeft);
+      setResumed(Boolean(data.resumed));
       setPhase("asking");
     } catch {
       setProblem("The interview could not start. Try again.");
@@ -51,7 +54,7 @@ export default function Recorder() {
         const form = new FormData();
         form.set("sessionId", sessionId.current ?? "");
         form.set("question", question);
-        if (audio) form.set("audio", audio, "answer.webm");
+        if (audio) form.set("audio", audio, fileNameFor(audio.type));
         else form.set("text", typed);
 
         const res = await fetch("/api/interview/answer", { method: "POST", body: form });
@@ -87,10 +90,10 @@ export default function Recorder() {
     setProblem(null);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      // 32 kbps opus (SPEC §3.3) — an hour of speech is about 14 MB.
+      const mimeType = supportedMimeType();
       const mr = new MediaRecorder(stream, {
-        mimeType: "audio/webm;codecs=opus",
-        audioBitsPerSecond: 32000,
+        ...(mimeType ? { mimeType } : {}),
+        audioBitsPerSecond: AUDIO_BITS_PER_SECOND,
       });
       chunks.current = [];
       mr.ondataavailable = (e) => {
@@ -98,13 +101,20 @@ export default function Recorder() {
       };
       mr.onstop = () => {
         stream.getTracks().forEach((t) => t.stop());
-        void send(new Blob(chunks.current, { type: "audio/webm" }));
+        // The recorder's own type, not an assumed one: the file has to be
+        // labelled as what it actually is for transcription to read it.
+        void send(new Blob(chunks.current, { type: mr.mimeType || mimeType || "audio/webm" }));
+      };
+      mr.onerror = () => {
+        stream.getTracks().forEach((t) => t.stop());
+        setProblem("The recording stopped unexpectedly. Try again, or type your answer instead.");
+        setPhase("asking");
       };
       recorder.current = mr;
       mr.start();
       setPhase("recording");
-    } catch {
-      setProblem("No microphone. You can type your answer instead.");
+    } catch (err) {
+      setProblem(micProblem(err));
       setPhase("asking");
     }
   }, [send]);
@@ -157,6 +167,7 @@ export default function Recorder() {
         {minutes}:{seconds}
       </div>
 
+      {resumed && <p style={S.resumed}>Picking up where you left off.</p>}
       {announceLast && <p style={S.last}>This is the last question.</p>}
       {phase === "recording" && (
         <p style={S.last} aria-live="polite">
@@ -218,6 +229,12 @@ const S: Record<string, React.CSSProperties> = {
     letterSpacing: ".08em",
     color: "#7a746a",
     fontVariantNumeric: "tabular-nums",
+  },
+  resumed: {
+    fontFamily: "var(--font-chrome)",
+    fontSize: "13px",
+    color: "#7a746a",
+    margin: 0,
   },
   last: {
     fontFamily: "var(--font-chrome)",

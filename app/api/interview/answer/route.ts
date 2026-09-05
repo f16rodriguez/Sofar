@@ -57,12 +57,17 @@ export async function POST(request: Request) {
     let stored: { bytes: Uint8Array; mimeType: string; path: string } | undefined;
     if (audio instanceof File && audio.size > 0) {
       const bytes = new Uint8Array(await audio.arrayBuffer());
-      const path = `${userId}/${sessionId}/${Date.now()}.webm`;
+      // Safari records mp4 where other browsers record webm; the object is
+      // named for what it holds so anything reading it later — transcription,
+      // the retention job, a person downloading it — is not misled.
+      const type = audio.type || "audio/webm";
+      const ext = type.includes("mp4") ? "mp4" : type.includes("ogg") ? "ogg" : "webm";
+      const path = `${userId}/${sessionId}/${Date.now()}.${ext}`;
       const { error: uploadError } = await db.storage
         .from("answer-audio")
-        .upload(path, bytes, { contentType: audio.type || "audio/webm" });
+        .upload(path, bytes, { contentType: type });
       if (uploadError) throw new Error(`audio upload failed: ${uploadError.message}`);
-      stored = { bytes, mimeType: audio.type || "audio/webm", path };
+      stored = { bytes, mimeType: type, path };
     }
 
     const seeds = await loadSeeds(db);

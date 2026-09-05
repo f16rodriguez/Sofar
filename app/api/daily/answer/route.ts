@@ -42,12 +42,14 @@ export async function POST(request: Request) {
     let stored: { bytes: Uint8Array; mimeType: string; path: string } | undefined;
     if (audio instanceof File && audio.size > 0) {
       const bytes = new Uint8Array(await audio.arrayBuffer());
-      const path = `${user.id}/${sessionId}/${Date.now()}.webm`;
+      const type = audio.type || "audio/webm";
+      const ext = type.includes("mp4") ? "mp4" : type.includes("ogg") ? "ogg" : "webm";
+      const path = `${user.id}/${sessionId}/${Date.now()}.${ext}`;
       const { error: uploadError } = await db.storage
         .from("answer-audio")
-        .upload(path, bytes, { contentType: audio.type || "audio/webm" });
+        .upload(path, bytes, { contentType: type });
       if (uploadError) throw new Error(`audio upload failed: ${uploadError.message}`);
-      stored = { bytes, mimeType: audio.type || "audio/webm", path };
+      stored = { bytes, mimeType: type, path };
     } else if (typeof typed !== "string" || typed.trim().length === 0) {
       return NextResponse.json({ error: "an answer is required" }, { status: 400 });
     }

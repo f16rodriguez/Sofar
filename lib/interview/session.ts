@@ -50,6 +50,58 @@ export interface Turn {
   done: boolean;
 }
 
+/**
+ * How long an unfinished interview waits before it is let go. A phone call,
+ * a closed tab, a train arriving: someone comes back to that within hours and
+ * should pick up where they stopped, not answer the same questions twice.
+ * Someone coming back the next day is starting their day, not resuming a
+ * sentence, and deserves a clean run.
+ */
+const RESUME_WINDOW_HOURS = 12;
+
+/**
+ * Begin, or pick up an interview already under way.
+ *
+ * Without this, opening the interview a second time always minted a fresh
+ * session: the earlier answers were orphaned in a session nothing would ever
+ * close, and the seed questions began again from the top — the state machine
+ * tracks what has been asked per session, so a person who was interrupted
+ * would be asked what they had already answered.
+ */
+export async function resumeOrStart(
+  db: SupabaseClient,
+  userId: string,
+  kind: "onboarding" | "interview" | "daily" | "weekly" = "onboarding",
+  now: Date = new Date(),
+): Promise<{ sessionId: string; state: SessionState; resumed: boolean }> {
+  const { data: open, error } = await db
+    .from("sessions")
+    .select("id, state, started_at")
+    .eq("user_id", userId)
+    .eq("kind", kind)
+    .eq("status", "active")
+    .order("started_at", { ascending: false });
+  if (error) throw new Error(`resumeOrStart failed: ${error.code ?? error.message}`);
+
+  const sessions = (open ?? []) as { id: string; state: SessionState; started_at: string | null }[];
+  const fresh = sessions.filter((row) => {
+    const started = row.started_at ? new Date(row.started_at).getTime() : 0;
+    const hours = (now.getTime() - started) / 3_600_000;
+    return hours < RESUME_WINDOW_HOURS && (row.state?.seconds_left ?? 0) > 60;
+  });
+
+  // Anything older, or spent, is closed rather than left open forever.
+  for (const stale of sessions.filter((row) => !fresh.includes(row))) {
+    await endSession(db, stale.id, stale.state ?? initialState());
+  }
+
+  const [latest] = fresh;
+  if (latest) return { sessionId: latest.id, state: latest.state, resumed: true };
+
+  const started = await startSession(db, userId, kind);
+  return { ...started, resumed: false };
+}
+
 export async function startSession(
   db: SupabaseClient,
   userId: string,
