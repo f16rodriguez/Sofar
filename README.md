@@ -22,7 +22,8 @@ structured memory from transcripts and writes a book that revises itself.
 | M3 — the Book | **PASSED** — `npm run accept:m3` 10/10: a contradiction produces exactly one proposal with a one-line rationale; declining changes nothing. Book screen, canon on first read, "So far." generator (`npm run sofar -- so-far --user <id>`, first run written), app shell, Settings (foundations, voice, naming permission per person, keep-recordings opt-in, time zone, export, delete) |
 | M4 — daily engine | Plumbing without the founder question bank: Today screen, single-question voice/text answer, generator from open threads with the §5.6 hard rules enforced in code (`npm run sofar -- daily --user <id> --dry`), hourly scheduled function at eight local time, streak and marks, Manuscript screen. Push (M5) and the seed bank are open |
 | M6 — export, delete, retention, hardening | PDF export (`GET /api/export`, rendered in its own Netlify Function), delete-everything behind an export gate with a daily worker, 60-day audio deletion, rate limits, log audit (`npm run audit:logs`). `npm run accept:m6` 13/13; export verified end to end. Health at `/api/health` |
-| M5, M7 | Not started |
+| M5 — billing, PWA, install | Installable: manifest, generated icons, home-screen prompt, standalone display. Stripe and web push not started (Stripe needs the founder's account; push needs a service worker and VAPID keys) |
+| M7 — twenty testers | Not started. `npm run signin-link -- <email>` onboards one without relying on email delivery |
 | Deploy | Live at https://sofar-book.netlify.app (Netlify, upload deploys). Deploy with `scripts/deploy.sh <proxy-url>` — it uploads a clean export of HEAD, never the working directory |
 
 ## Provisioned infrastructure

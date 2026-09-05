@@ -70,6 +70,8 @@ Nothing under `app/` may import `lib/export/` — see the crash above.
 | `npm run test:auth` | a real magic link → session → a screen opens; spent and forged links refused | – |
 | `npm run smoke` | every screen and endpoint, signed in and out, against a live deploy | – |
 | `npm run test:meta` | the interview filter refuses meta-talk and keeps real material | – |
+| `npm run test:session` | an interrupted interview resumes; only one is ever open | – |
+| `npm run make-icons` | redraws the app icons from scratch (deterministic) | – |
 
 Live checks take `SOFAR_BASE_URL=https://sofar-book.netlify.app`. Run
 `test:auth` and `smoke` after every deploy — a green `/api/health` says the
