@@ -72,6 +72,8 @@ Nothing under `app/` may import `lib/export/` — see the crash above.
 | `npm run test:meta` | the interview filter refuses meta-talk and keeps real material | – |
 | `npm run test:session` | an interrupted interview resumes; only one is ever open | – |
 | `npm run make-icons` | redraws the app icons from scratch (deterministic) | – |
+| `npm run test:minutes` | the minute meter, the cap, top-ups, the monthly reset | – |
+| `npm run sofar -- process` | reads closed sessions into the book | extraction ~$0.05, a chapter ~$0.10 |
 
 Live checks take `SOFAR_BASE_URL=https://sofar-book.netlify.app`. Run
 `test:auth` and `smoke` after every deploy — a green `/api/health` says the
@@ -86,6 +88,19 @@ mail on a phone does not guarantee that browser. To fix the emailed ones,
 Supabase → Authentication → Email Templates → Magic Link:
 
     <a href="{{ .SiteURL }}/auth/callback?token_hash={{ .TokenHash }}&type=magiclink">Log in</a>
+
+## Processing sessions
+
+A finished session sits at `status = processing` until something reads it.
+`npm run sofar -- process` does that by hand: extraction and merge, a chapter
+once five answers have accumulated since the last one, and a revision where
+new material contradicts canon. `--session <id>` for one, `--no-chapters` to
+skip the expensive half.
+
+`netlify/functions/process-sessions.mts` does the same every fifteen minutes,
+but **only when `SOFAR_PROCESS_SESSIONS=on`**. It is off deliberately: this is
+the one job that spends money without anyone asking, and it should not be
+switched on until someone wants the bill.
 
 ## Housekeeping
 
@@ -104,3 +119,31 @@ could not parse, so a failed run never reports $0.
   `https://sofar-book.netlify.app/auth/callback`.
 - The founder's user id is `11111111-1111-4111-8111-111111111111`. It was
   hand-inserted during M1 and repaired into a real auth user on 2026-09-04.
+
+## Security posture
+
+Reviewed 2026-09-06, before any tester had access.
+
+- Session cookie: `HttpOnly`, `Secure`, `SameSite=Lax`, set the same way in
+  all three places it is written (`lib/cookies.ts`). Nothing in the browser
+  reads it; every Supabase call happens on the server.
+- Headers on every response: `frame-ancestors 'none'` + `X-Frame-Options:
+  DENY`, `Referrer-Policy: strict-origin-when-cross-origin`,
+  `Permissions-Policy` granting only the microphone, `nosniff`, and
+  `no-store` on `/api/*`.
+- Every route takes identity from the session; none accepts a user id from a
+  client. Storage paths are built from the session user and a session already
+  verified to belong to them.
+- No service-role, Anthropic or Deepgram key appears in built output.
+
+Known and accepted, not defects:
+
+- **No full CSP.** An over-tight policy that breaks the recorder is worse
+  than none. Worth adding with care once the script surface stops moving.
+- **Session lifetime is 400 days** (Supabase's default). Long for a private
+  book; shortening it trades safety against a daily habit, so it is a product
+  decision rather than a fix.
+- **Prompt injection.** A person can write instructions into their own
+  transcript. The blast radius is their own book, and the citation, naming and
+  entailment gates all still apply, so it degrades their prose rather than
+  crossing to anyone else.
