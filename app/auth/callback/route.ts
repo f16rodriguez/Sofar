@@ -26,6 +26,7 @@ import { serviceClient } from "@/lib/supabase";
 import { requireEnv } from "@/lib/env";
 import { log } from "@/lib/log";
 import { siteOrigin } from "@/lib/site";
+import { COOKIE_OPTIONS, withCookieDefaults } from "@/lib/cookies";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -53,6 +54,7 @@ export async function GET(request: Request) {
     requireEnv("NEXT_PUBLIC_SUPABASE_URL"),
     requireEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY"),
     {
+      cookieOptions: COOKIE_OPTIONS,
       cookies: {
         getAll: () =>
           cookieHeader
@@ -90,7 +92,7 @@ export async function GET(request: Request) {
     const ready = Boolean(data?.pronoun && data?.birthplace && data?.recording_consent_at);
 
     const response = to(ready ? "/interview?from=signin" : "/onboarding?from=signin");
-    for (const c of pending) response.cookies.set(c.name, c.value, c.options);
+    for (const c of pending) response.cookies.set(c.name, c.value, withCookieDefaults(c.options));
     if (pending.length === 0) log.error("auth.callback", new Error("verified but no session cookie was issued"));
     return response;
   } catch (err) {

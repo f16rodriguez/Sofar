@@ -8,6 +8,7 @@
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import { requireEnv } from "./env";
+import { COOKIE_OPTIONS, withCookieDefaults } from "./cookies";
 
 export async function authClient() {
   const store = await cookies();
@@ -15,12 +16,13 @@ export async function authClient() {
     requireEnv("NEXT_PUBLIC_SUPABASE_URL"),
     requireEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY"),
     {
+      cookieOptions: COOKIE_OPTIONS,
       cookies: {
         getAll: () => store.getAll(),
         setAll: (list) => {
           try {
             for (const { name, value, options } of list) {
-              store.set(name, value, options);
+              store.set(name, value, withCookieDefaults(options));
             }
           } catch {
             // Called from a Server Component, where cookies are read-only.
