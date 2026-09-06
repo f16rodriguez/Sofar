@@ -7,7 +7,7 @@
 import { NextResponse } from "next/server";
 import { serviceClient } from "@/lib/supabase";
 import { requireUser, ensureProfile, Unauthorized } from "@/lib/auth";
-import { resumeOrStart, loadSeeds, nextTurn } from "@/lib/interview/session";
+import { resumeOrStart, loadSeeds, nextTurn, OutOfMinutes } from "@/lib/interview/session";
 import { log } from "@/lib/log";
 import { allow, LIMITS } from "@/lib/ratelimit";
 import { tooMany } from "@/lib/ratelimit-response";
@@ -57,6 +57,14 @@ export async function POST() {
   } catch (err) {
     if (err instanceof Unauthorized) {
       return NextResponse.json({ error: "not signed in" }, { status: 401 });
+    }
+    if (err instanceof OutOfMinutes) {
+      // 402: nothing is broken and nothing is forbidden — the minutes are
+      // spent, and they come back.
+      return NextResponse.json(
+        { error: "no session minutes left this month", resetsAt: err.resetsAt },
+        { status: 402 },
+      );
     }
     // SPEC §7: never let transcript or answer content reach a log line.
     log.error("interview.start", err);

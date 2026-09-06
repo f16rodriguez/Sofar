@@ -9,6 +9,7 @@ import FoundationsForm, { type FoundationsData } from "../FoundationsForm";
 import TimezoneSelect from "./TimezoneSelect";
 import DeleteAccount from "./DeleteAccount";
 import { savePerson, saveRecordings, saveTimezone } from "./actions";
+import { balance } from "@/lib/minutes";
 
 export const metadata = { title: "Sofar — Settings" };
 
@@ -38,6 +39,8 @@ export default async function SettingsPage({
       .eq("user_id", user.id)
       .order("label"),
   ]);
+
+  const minutes = await balance(db, user.id);
 
   const Saved = ({ section }: { section: string }) =>
     saved === section ? <p className="saved">Saved.</p> : null;
@@ -139,6 +142,19 @@ export default async function SettingsPage({
             Save
           </button>
         </form>
+      </section>
+
+      <section className="settings-section" id="minutes">
+        <h2 className="section-title">Recording time</h2>
+        <p className="lede">
+          {minutes.used === 0
+            ? `None used this month, of ${minutes.cap} minutes.`
+            : `${minutes.used} of ${minutes.cap} minutes used this month.`}{" "}
+          It resets on {new Date(minutes.resetsAt).toLocaleDateString("en-US", { month: "long", day: "numeric" })}.
+        </p>
+        <div className="meter" role="img" aria-label={`${minutes.used} of ${minutes.cap} minutes used`}>
+          <span className="meter-fill" style={{ width: `${Math.min(100, (minutes.used / minutes.cap) * 100)}%` }} />
+        </div>
       </section>
 
       <section className="settings-section" id="account">

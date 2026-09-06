@@ -4,6 +4,7 @@
 //   sofar run --session <session-id>
 //   sofar so-far --user <id>          regenerate "So far." (SPEC §5.7)
 //   sofar daily --user <id> [--dry]   today's question (SPEC §5.6)
+//   sofar process [--session <id>]    read closed sessions into the book
 //
 // transcript → extraction → merge → three chapters → DB, and prints them.
 // Idempotent: running twice on the same transcript must not duplicate memory
@@ -23,6 +24,7 @@ import * as memory from "../lib/memory";
 import { proposeRevision } from "../lib/pipeline/revision";
 import { generateSoFar } from "../lib/pipeline/sofar";
 import { generateDailyQuestion } from "../lib/daily/question";
+import { processSession, UNLOCK_THRESHOLD } from "../lib/pipeline/process";
 import {
   findAngles,
   writeChapter,
@@ -545,13 +547,64 @@ async function daily() {
   console.log(`\nRUN COST: ${usage.summary()}`);
 }
 
-const commands: Record<string, () => Promise<void>> = { run, "so-far": soFar, daily };
+// --- process: closed sessions into the book (SPEC §3.4) --------------------
+// Extraction and merge on every session waiting, a chapter once enough has
+// accumulated, and a revision where new material contradicts what is canon.
+// Paid: extraction is three calls, a chapter and a revision one each.
+async function process_() {
+  const db = serviceClient();
+  const one = arg("session");
+  const noChapters = process.argv.includes("--no-chapters");
+
+  let ids: string[];
+  if (one) {
+    ids = [one];
+  } else {
+    const { data, error } = await db
+      .from("sessions")
+      .select("id")
+      .eq("status", "processing")
+      .order("ended_at", { ascending: true })
+      .limit(20);
+    if (error) throw new Error(error.message);
+    ids = (data ?? []).map((r: { id: string }) => r.id);
+  }
+
+  if (ids.length === 0) {
+    console.log("nothing waiting.");
+    return;
+  }
+  console.log(`${ids.length} session(s) waiting…`);
+
+  for (const id of ids) {
+    const r = await processSession(db, id, { writeChapters: !noChapters });
+    if (r.skipped) {
+      console.log(`  ${id}: skipped — ${r.skipped}`);
+      continue;
+    }
+    const parts = [`${r.answers} answer(s)`, `created ${JSON.stringify(r.created)}`];
+    if (r.refused) parts.push(`refused ${r.refused}`);
+    if (r.chapter) parts.push(`wrote "${r.chapter.title}" (chapter ${r.chapter.number})`);
+    else parts.push(`${r.answersUntilChapter} more answer(s) to a chapter (of ${UNLOCK_THRESHOLD})`);
+    if (r.revisions) parts.push(`${r.revisions} revision(s) proposed`);
+    console.log(`  ${id}: ${parts.join(" · ")}`);
+  }
+  console.log(`\nRUN COST: ${usage.summary()}`);
+}
+
+const commands: Record<string, () => Promise<void>> = {
+  run,
+  "so-far": soFar,
+  daily,
+  process: process_,
+};
 const main = commands[process.argv[2] ?? ""];
 if (!main) {
   console.error("usage: sofar run --transcript <file> --user <uuid>");
   console.error("       sofar run --session <id>");
   console.error("       sofar so-far --user <uuid>");
   console.error("       sofar daily --user <uuid> [--dry]");
+  console.error("       sofar process [--session <id>] [--no-chapters]");
   process.exit(1);
 }
 

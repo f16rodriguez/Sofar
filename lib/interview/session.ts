@@ -14,6 +14,7 @@ import { z } from "zod";
 import { complete, loadPrompt } from "../llm";
 import { createAnswer, setTranscript } from "../repo";
 import { transcribe } from "../stt";
+import { spend as spendMinutes, balance, isCapped } from "../minutes";
 import {
   decide,
   advance,
@@ -59,6 +60,14 @@ export interface Turn {
  */
 const RESUME_WINDOW_HOURS = 12;
 
+/** No session minutes left this month (SPEC §3.6). Routes turn this into a 402. */
+export class OutOfMinutes extends Error {
+  constructor(public readonly resetsAt: string) {
+    super("no session minutes left");
+    this.name = "OutOfMinutes";
+  }
+}
+
 /**
  * Begin, or pick up an interview already under way.
  *
@@ -97,6 +106,14 @@ export async function resumeOrStart(
 
   const [latest] = fresh;
   if (latest) return { sessionId: latest.id, state: latest.state, resumed: true };
+
+  // A new session of a kind the plan meters cannot begin on an empty meter
+  // (SPEC §3.6). Resuming one already under way is not refused: the minutes
+  // for it are already spent.
+  if (isCapped(kind)) {
+    const left = await balance(db, userId, now);
+    if (left.remaining <= 0) throw new OutOfMinutes(left.resetsAt);
+  }
 
   const started = await startSession(db, userId, kind);
   return { ...started, resumed: false };
@@ -367,14 +384,23 @@ export async function endSession(
   sessionId: string,
   state: SessionState,
 ): Promise<void> {
-  const { error } = await db
+  const minutes = Number(((1080 - state.seconds_left) / 60).toFixed(2));
+  const { data: session, error } = await db
     .from("sessions")
     .update({
       state,
       status: "processing",
       ended_at: new Date().toISOString(),
-      minutes: Number(((1080 - state.seconds_left) / 60).toFixed(2)),
+      minutes,
     })
-    .eq("id", sessionId);
+    .eq("id", sessionId)
+    .select("user_id")
+    .single();
   if (error) throw new Error(`endSession failed: ${error.code ?? error.message}`);
+
+  // Every recorded minute costs money to serve, so every one is counted —
+  // whether or not this kind of session is the kind the cap refuses.
+  if (minutes > 0 && session?.user_id) {
+    await spendMinutes(db, session.user_id as string, minutes);
+  }
 }

@@ -303,3 +303,14 @@ button:active { transform: scale(0.985); }
 }
 .install-dismiss:hover { color: var(--ink); }
 .app { display: flex; flex-direction: column; min-height: 100dvh; }
+
+/* --- the minute meter ----------------------------------------------------- */
+.meter {
+  height: 6px;
+  background: var(--parch);
+  border: 0.5px solid var(--rule);
+  border-radius: 3px;
+  overflow: hidden;
+  max-width: 22rem;
+}
+.meter-fill { display: block; height: 100%; background: var(--oxblood); }
