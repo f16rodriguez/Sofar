@@ -36,7 +36,7 @@ export async function GET() {
     "prompts/preamble.md": readable("prompts/preamble.md"),
     "prompts/interviewer.md": readable("prompts/interviewer.md"),
     "prompts/sofar.md": readable("prompts/sofar.md"),
-    "prompts/daily-question.md": readable("prompts/daily-question.md"),
+    "prompts/daily-question.v2.md": readable("prompts/daily-question.v2.md"),
   };
   const ok = Object.values(env).every(Boolean) && Object.values(files).every(Boolean);
   return NextResponse.json(
