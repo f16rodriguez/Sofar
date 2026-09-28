@@ -46,8 +46,14 @@ export async function saveTimezone(formData: FormData) {
   const db = serviceClient();
   const { error } = await db
     .from("users")
-    .update({ timezone: tz, updated_at: new Date().toISOString() })
+    .update({
+      timezone: tz,
+      // The box is only on the page when email is set up; an absent box is not a "no".
+      ...(formData.has("email_field") ? { email_daily: formData.get("email_daily") === "on" } : {}),
+      updated_at: new Date().toISOString(),
+    })
     .eq("id", user.id);
   if (error) throw new Error(`timezone save failed: ${error.code ?? error.message}`);
   redirect("/settings?saved=timezone#timezone");
 }
+

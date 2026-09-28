@@ -114,7 +114,7 @@ async function main() {
     }
 
     // Public pages carry no session at all.
-    for (const [path, expect] of [["/", /living autobiography/i], ["/privacy", /Privacy, plainly/], ["/signin", /Send the link/]] as [string, RegExp][]) {
+    for (const [path, expect] of [["/", /living autobiography/i], ["/privacy", /Privacy, plainly/], ["/signin", /Send the link/], ["/unsubscribe", /This link has expired/]] as [string, RegExp][]) {
       const res = await fetch(`${BASE}${path}`);
       const html = await res.text();
       check(`public ${path}`, res.status === 200 && expect.test(html) && !CRASHED.test(html), String(res.status));

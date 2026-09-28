@@ -40,6 +40,7 @@
   display: inline-block; font-family: var(--font-chrome); font-size: 16px; font-weight: 500;
   background: var(--oxblood); color: var(--cream); padding: 16px 26px; text-decoration: none; border-radius: 4px;
 }
+.landing button.btn { border: none; cursor: pointer; }
 .landing .btn:focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; }
 .landing .under { font-family: var(--font-chrome); font-size: 14px; color: var(--muted); margin: 14px 0 0; }
 

@@ -10,6 +10,7 @@ import TimezoneSelect from "./TimezoneSelect";
 import DeleteAccount from "./DeleteAccount";
 import { savePerson, saveRecordings, saveTimezone } from "./actions";
 import { balance } from "@/lib/minutes";
+import { emailConfigured } from "@/lib/email";
 
 export const metadata = { title: "Sofar — Settings" };
 
@@ -130,14 +131,24 @@ export default async function SettingsPage({
       </section>
 
       <section className="settings-section" id="timezone">
-        <h2 className="section-title">Where your day is</h2>
-        <p className="lede">The daily question arrives at a local hour. This is the clock it uses.</p>
+        <h2 className="section-title">Your morning question</h2>
+        <p className="lede">One question arrives at eight in the morning, your time. This is the clock it uses.</p>
         <Saved section="timezone" />
         {problem === "timezone" && <p className="problem">That isn&rsquo;t a time zone the book knows.</p>}
         <form action={saveTimezone} className="form">
           <div className="field">
             <TimezoneSelect saved={String(profile?.timezone ?? "UTC")} />
           </div>
+          {emailConfigured() && (
+            <label className="option">
+              <input type="hidden" name="email_field" value="1" />
+              <input type="checkbox" name="email_daily" defaultChecked={profile?.email_daily !== false} />
+              <span className="option-text">
+                Email it to me too
+                <em>To {String(profile?.email ?? "your address")}. The subject line is the question.</em>
+              </span>
+            </label>
+          )}
           <button type="submit" className="button-quiet">
             Save
           </button>

@@ -31,6 +31,9 @@ most of this was learned the hard way.
 | `DEEPGRAM_API_KEY` | yes | |
 | `SOFAR_ALLOWED_EMAILS` | no | invite list, comma-separated; unset = nobody |
 | `SITE_URL` | no | `https://sofar-book.netlify.app`; redirects and the magic-link return address are built from it |
+| `RESEND_API_KEY` | yes | morning emails; unset = none sent, nothing fails |
+| `SOFAR_EMAIL_FROM` | no | e.g. `Sofar <morning@yourdomain.com>` — must be on a domain verified in Resend |
+| `SOFAR_EMAIL_SECRET` | yes | optional; signs unsubscribe links. Falls back to the service role key |
 
 Secrets must be set with **all scopes** (or at least builds + functions) and
 **all contexts**. On 2026-09-04 the health endpoint showed
@@ -51,8 +54,10 @@ despite the upserts reporting success. Set them in the UI, then redeploy
 - `jobs-daily` — 05:00 UTC: audio past sixty days, pending account
   deletions. By hand: `npm run jobs -- retention|deletions|all [--dry]`.
 - `daily-question` — hourly: writes the day's question for everyone whose
-  local clock reached eight. By hand: `npm run sofar -- daily --user <id>
-  [--dry]`.
+  local clock reached eight, and emails it when email is set up. Skips
+  anyone still in their first interview, and anyone who left the last three
+  unanswered (they are asked again when they come back to Today). By hand:
+  `npm run sofar -- daily --user <id> [--dry]`.
 
 Nothing under `app/` may import `lib/export/` — see the crash above.
 
@@ -73,6 +78,9 @@ Nothing under `app/` may import `lib/export/` — see the crash above.
 | `npm run test:session` | an interrupted interview resumes; only one is ever open | – |
 | `npm run make-icons` | redraws the app icons from scratch (deterministic) | – |
 | `npm run test:minutes` | the minute meter, the cap, top-ups, the monthly reset | – |
+| `npm run test:daily` | the daily question's rules: no returning to a subject within two weeks, the quiet pause | – |
+| `npm run test:email` | the morning email and its unsubscribe; nothing is really sent | – |
+| `npm run test:render` | book typography and the revision diff | – |
 | `npm run sofar -- process` | reads closed sessions into the book | extraction ~$0.05, a chapter ~$0.10 |
 
 Live checks take `SOFAR_BASE_URL=https://sofar-book.netlify.app`. Run
@@ -88,6 +96,28 @@ mail on a phone does not guarantee that browser. To fix the emailed ones,
 Supabase → Authentication → Email Templates → Magic Link:
 
     <a href="{{ .SiteURL }}/auth/callback?token_hash={{ .TokenHash }}&type=magiclink">Log in</a>
+
+## Email: sign-in links and the morning question
+
+**Until this is done, nobody but members of the Supabase team can sign in.**
+Supabase's built-in sender refuses any address outside the project's team
+("Email address not authorized") and is capped at a few messages an hour.
+One domain and one Resend account fix both sign-in and the morning email:
+
+1. Buy a domain (any registrar, ~$12/yr). The netlify.app address cannot be
+   verified for sending.
+2. Resend → Domains → add it, then add the DNS records it lists (SPF, DKIM).
+   Free tier: 3,000 emails a month, 100 a day — about 100 daily users.
+3. Resend → API keys → create one with sending access.
+4. Supabase → Authentication → SMTP Settings → enable custom SMTP:
+   host `smtp.resend.com`, port `465`, user `resend`, password = the API key,
+   sender e.g. `signin@yourdomain.com`. Then raise Authentication → Rate
+   Limits → emails per hour from 30.
+5. Netlify env: `RESEND_API_KEY`, `SOFAR_EMAIL_FROM`
+   (`Sofar <morning@yourdomain.com>`); redeploy.
+
+Separate From addresses for sign-in and the morning question keep one
+reputation from dragging down the other.
 
 ## Processing sessions
 

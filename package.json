@@ -25,7 +25,8 @@
     "make-icons": "tsx scripts/make-icons.ts",
     "test:minutes": "tsx scripts/test-minutes.ts",
     "test:render": "tsx scripts/test-render.ts",
-    "test:daily": "tsx scripts/test-daily-rules.ts"
+    "test:daily": "tsx scripts/test-daily-rules.ts",
+    "test:email": "tsx scripts/test-email.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.123.0",
