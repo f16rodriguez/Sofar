@@ -5,6 +5,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import { supportedMimeType, micProblem, fileNameFor, AUDIO_BITS_PER_SECOND } from "@/lib/recording";
+import InstallCard from "../InstallCard";
 
 type Phase = "idle" | "recording" | "sending" | "done" | "error";
 
@@ -77,12 +78,13 @@ export default function TodayAnswer({ questionId }: { questionId: string }) {
   if (phase === "done") {
     return (
       <div className="form rise">
-        <p className="lede">Answered for today. Tomorrow at eight.</p>
+        <p className="lede">Answered for today. Tomorrow&rsquo;s arrives at eight.</p>
         {heard && (
           <p className="heard">
             <span className="heard-label">Heard</span> {heard}
           </p>
         )}
+        <InstallCard />
       </div>
     );
   }
@@ -102,6 +104,9 @@ export default function TodayAnswer({ questionId }: { questionId: string }) {
         <button type="button" className="button" onClick={() => void start()} disabled={phase === "sending"}>
           {phase === "sending" ? "One moment" : "Answer"}
         </button>
+      )}
+      {phase === "idle" && (
+        <p className="hint">About thirty seconds. Say it the way you&rsquo;d tell someone who was there.</p>
       )}
       <details className="details">
         <summary className="hint" style={{ cursor: "pointer" }}>Type instead</summary>

@@ -13,6 +13,7 @@ import { requireUser, Unauthorized } from "@/lib/auth";
 import { endSession } from "@/lib/interview/session";
 import type { SessionState } from "@/lib/interview/machine";
 import { log } from "@/lib/log";
+import { markOnboarded } from "@/lib/journey";
 
 export const runtime = "nodejs";
 
@@ -39,6 +40,8 @@ export async function POST(request: Request) {
 
     const state = session.state as SessionState;
     await endSession(db, sessionId, state);
+    // The first interview is over; from here the book grows a question a day.
+    await markOnboarded(db, userId);
 
     // The transcript the pipeline reads: this session's answers in order.
     const { data: answers } = await db

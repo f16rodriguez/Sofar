@@ -44,6 +44,8 @@ export default async function ManuscriptPage() {
   const chapters = ((rows ?? []) as Row[]).sort((a, b) => rank(a) - rank(b) || (a.number ?? 0) - (b.number ?? 0));
   const pending = new Set((proposed ?? []).map((p) => p.chapter_id as string));
   const words = chapters.reduce((s, c) => s + (c.word_count ?? 0), 0);
+  const written = chapters.filter((c) => c.kind !== "sofar").length;
+  const pageCount = Math.round(words / 275);
   void answers;
 
   return (
@@ -51,8 +53,9 @@ export default async function ManuscriptPage() {
       <StreakStrip streak={streak} marks={marks} />
       <h1 className="page-title">{profile?.book_name ?? "Your book"}</h1>
       <p className="hint">
-        {chapters.length} {chapters.length === 1 ? "chapter" : "chapters"} · {Math.max(1, Math.round(words / 275))}{" "}
-        {Math.round(words / 275) === 1 ? "page" : "pages"} · {words.toLocaleString()} words
+        {written} {written === 1 ? "chapter" : "chapters"} ·{" "}
+        {pageCount < 1 ? "under a page" : pageCount === 1 ? "about a page" : `about ${pageCount} pages`} ·{" "}
+        {words.toLocaleString()} words
       </p>
 
       {chapters.length === 0 ? (
@@ -65,20 +68,31 @@ export default async function ManuscriptPage() {
                 {c.kind === "prologue" ? "Prologue" : c.kind === "sofar" ? "So far" : c.kind === "interlude" ? "Interlude" : ROMAN[c.number ?? 0] ?? c.number}
               </span>
               <span className="manuscript-title">
-                <Link href="/book">{c.title}</Link>
+                <Link href={`/book#chapter-${c.id}`}>{c.title}</Link>
               </span>
               <span className="manuscript-meta">
-                {c.status === "canon" ? "Read" : "Unread"} · v{c.version} · {c.word_count ?? 0} words
-                {pending.has(c.id) ? " · a revision is proposed" : ""}
+                {[
+                  c.status === "canon" ? "Read" : "Not yet read",
+                  // Versions are how the system counts; a person counts revisions.
+                  c.version > 1 ? (c.version === 2 ? "revised once" : `revised ${c.version - 1} times`) : null,
+                  `${c.word_count ?? 0} words`,
+                  pending.has(c.id) ? "a revision to look at" : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
               </span>
             </li>
           ))}
         </ol>
       )}
-      <p className="row" style={{ marginTop: 12 }}>
-        <Link className="button-quiet" href="/book">Read the book</Link>
-        <a className="button-quiet" href="/api/export" download>Export as PDF</a>
-      </p>
+      <div className="row" style={{ marginTop: 12 }}>
+        <Link className="button-quiet" href="/book">
+          Read the book
+        </Link>
+        <a className="button-quiet" href="/api/export" download>
+          Export as PDF
+        </a>
+      </div>
     </main>
   );
 }

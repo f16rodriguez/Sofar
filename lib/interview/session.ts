@@ -82,6 +82,7 @@ export async function resumeOrStart(
   userId: string,
   kind: "onboarding" | "interview" | "daily" | "weekly" = "onboarding",
   now: Date = new Date(),
+  opts: { fresh?: boolean } = {},
 ): Promise<{ sessionId: string; state: SessionState; resumed: boolean }> {
   const { data: open, error } = await db
     .from("sessions")
@@ -93,11 +94,19 @@ export async function resumeOrStart(
   if (error) throw new Error(`resumeOrStart failed: ${error.code ?? error.message}`);
 
   const sessions = (open ?? []) as { id: string; state: SessionState; started_at: string | null }[];
-  const fresh = sessions.filter((row) => {
-    const started = row.started_at ? new Date(row.started_at).getTime() : 0;
-    const hours = (now.getTime() - started) / 3_600_000;
-    return hours < RESUME_WINDOW_HOURS && (row.state?.seconds_left ?? 0) > 60;
-  });
+  // The first interview is twenty minutes most people will not find in one
+  // sitting; ten minutes tonight and ten on Thursday is a finished interview,
+  // not two false starts. So it waits as long as it takes. Other sessions go
+  // stale after the window. "Start over" is a choice the person makes, never
+  // a clock that makes it for them.
+  const fresh = opts.fresh
+    ? []
+    : sessions.filter((row) => {
+        const started = row.started_at ? new Date(row.started_at).getTime() : 0;
+        const hours = (now.getTime() - started) / 3_600_000;
+        const inWindow = kind === "onboarding" || hours < RESUME_WINDOW_HOURS;
+        return inWindow && (row.state?.seconds_left ?? 0) > 60;
+      });
 
   // Anything older, or spent, is closed rather than left open forever.
   for (const stale of sessions.filter((row) => !fresh.includes(row))) {

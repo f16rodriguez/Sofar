@@ -23,6 +23,7 @@ import { createServerClient } from "@supabase/ssr";
 import type { EmailOtpType } from "@supabase/supabase-js";
 import { ensureProfile } from "@/lib/auth";
 import { serviceClient } from "@/lib/supabase";
+import { journey } from "@/lib/journey";
 import { requireEnv } from "@/lib/env";
 import { log } from "@/lib/log";
 import { siteOrigin } from "@/lib/site";
@@ -83,15 +84,10 @@ export async function GET(request: Request) {
     if (!user) throw new Error("no user on the verified session");
     await ensureProfile({ id: user.id, email: user.email ?? "" });
 
-    const db = serviceClient();
-    const { data } = await db
-      .from("users")
-      .select("pronoun, birthplace, recording_consent_at")
-      .eq("id", user.id)
-      .maybeSingle();
-    const ready = Boolean(data?.pronoun && data?.birthplace && data?.recording_consent_at);
-
-    const response = to(ready ? "/interview?from=signin" : "/onboarding?from=signin");
+    // Wherever this person actually is: foundations, the first interview, or
+    // — for anyone with a book already — today's question.
+    const { home } = await journey(serviceClient(), user.id);
+    const response = to(`${home}?from=signin`);
     for (const c of pending) response.cookies.set(c.name, c.value, withCookieDefaults(c.options));
     if (pending.length === 0) log.error("auth.callback", new Error("verified but no session cookie was issued"));
     return response;

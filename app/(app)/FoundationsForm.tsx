@@ -66,11 +66,17 @@ export default function FoundationsForm({
           </span>
           <label className="option">
             <input type="radio" name="style" value="third" defaultChecked={(data?.style ?? "third") === "third"} />
-            Third person — <em>he left before the coffee was ready.</em>
+            <span className="option-text">
+              Third person
+              <em>He left before the coffee was ready.</em>
+            </span>
           </label>
           <label className="option">
             <input type="radio" name="style" value="first" defaultChecked={data?.style === "first"} />
-            First person — <em>I left before the coffee was ready.</em>
+            <span className="option-text">
+              First person
+              <em>I left before the coffee was ready.</em>
+            </span>
           </label>
         </fieldset>
       )}
@@ -104,7 +110,7 @@ export default function FoundationsForm({
         </label>
       )}
 
-      <button type="submit" className="button">
+      <button type="submit" className={showStyle ? "button-quiet" : "button"}>
         {submitLabel}
       </button>
     </form>

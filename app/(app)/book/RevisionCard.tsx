@@ -1,27 +1,31 @@
 "use client";
 
-// A proposed revision (SPEC §5.5, M3). Revisions are proposed, never applied.
+// A proposed revision (SPEC §5.5). Revisions are proposed, never applied.
 //
-// The person sees the one-line reason and the proposed text, and decides.
-// Declining changes nothing — not the chapter, not the memory it came from.
-// That is the acceptance test for this milestone, and it is why there is no
-// third option here and no default action.
+// The person sees the one-line reason and exactly what would change —
+// sentences struck and sentences added, in place — and decides. Declining
+// changes nothing: not the chapter, not the memory it came from. That is the
+// acceptance test for this milestone, and it is why there is no third option
+// and no default.
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { diffChapter } from "@/lib/diff";
+import { bookText } from "@/lib/typography";
 
 export default function RevisionCard({
   revisionId,
   rationale,
+  original,
   proposed,
 }: {
   revisionId: string;
   rationale: string;
+  original: string;
   proposed: string;
 }) {
-  const [state, setState] = useState<"closed" | "open" | "working" | "accepted" | "declined">(
-    "closed",
-  );
+  const [state, setState] = useState<"closed" | "open" | "working" | "accepted" | "declined">("closed");
   const [problem, setProblem] = useState<string | null>(null);
+  const diff = useMemo(() => diffChapter(original, proposed), [original, proposed]);
 
   async function decide(decision: "accepted" | "declined") {
     setState("working");
@@ -41,130 +45,54 @@ export default function RevisionCard({
     }
   }
 
-  if (state === "accepted") {
-    return <p style={S.settled}>Revised.</p>;
-  }
-  if (state === "declined") {
-    return <p style={S.settled}>Left as it was.</p>;
-  }
+  if (state === "accepted") return <p className="revision-settled">Revised.</p>;
+  if (state === "declined") return <p className="revision-settled">Left as it was.</p>;
+
+  const count =
+    diff.changed === 0
+      ? "No sentences change."
+      : diff.changed <= 2
+        ? "One sentence changes."
+        : `About ${Math.ceil(diff.changed / 2)} sentences change.`;
 
   return (
-    <aside style={S.card}>
-      <p style={S.rationale}>{rationale}</p>
+    <aside className="revision">
+      <p className="revision-eyebrow">A proposed revision</p>
+      <p className="revision-why">{bookText(rationale)}</p>
 
       {state === "closed" ? (
-        <button style={S.link} onClick={() => setState("open")}>
-          See the revision
+        <button type="button" className="button-quiet" onClick={() => setState("open")}>
+          See what would change
         </button>
       ) : (
         <>
-          <div style={S.proposed} className="unfold">
-            {proposed
-              .split(/\n\s*\n/)
-              .map((p) => p.trim())
-              .filter(Boolean)
-              .map((paragraph, i) => (
-                <p key={i} style={S.proposedParagraph}>
-                  {paragraph}
-                </p>
-              ))}
+          <p className="hint">{count} Struck text would go; underlined text would be new.</p>
+          <div className="revision-text unfold">
+            {diff.paragraphs.map((para, i) => (
+              <p key={i}>
+                {para.map((piece, j) =>
+                  piece.kind === "same" ? (
+                    <span key={j}>{bookText(piece.text)} </span>
+                  ) : piece.kind === "added" ? (
+                    <ins key={j}>{bookText(piece.text)}</ins>
+                  ) : (
+                    <del key={j}>{bookText(piece.text)}</del>
+                  ),
+                )}
+              </p>
+            ))}
           </div>
-          <div style={S.actions}>
-            <button
-              style={S.accept}
-              onClick={() => void decide("accepted")}
-              disabled={state === "working"}
-            >
+          <div className="row">
+            <button type="button" className="button" onClick={() => void decide("accepted")} disabled={state === "working"}>
               Use this
             </button>
-            <button
-              style={S.decline}
-              onClick={() => void decide("declined")}
-              disabled={state === "working"}
-            >
+            <button type="button" className="button-quiet" onClick={() => void decide("declined")} disabled={state === "working"}>
               Keep what&rsquo;s there
             </button>
           </div>
         </>
       )}
-
-      {problem && <p style={S.problem}>{problem}</p>}
+      {problem && <p className="problem">{problem}</p>}
     </aside>
   );
 }
-
-const S: Record<string, React.CSSProperties> = {
-  card: {
-    marginTop: 32,
-    borderTop: "1px solid #d9d0bf",
-    paddingTop: 20,
-    display: "flex",
-    flexDirection: "column",
-    gap: 12,
-  },
-  rationale: {
-    fontFamily: "var(--font-chrome)",
-    fontSize: 14,
-    lineHeight: 1.6,
-    color: "#3d3932",
-    margin: 0,
-  },
-  link: {
-    alignSelf: "flex-start",
-    fontFamily: "var(--font-chrome)",
-    fontSize: 14,
-    background: "none",
-    border: "none",
-    padding: 0,
-    color: "#7a2e2a",
-    textDecoration: "underline",
-    cursor: "pointer",
-  },
-  proposed: {
-    background: "#f4eee2",
-    border: "1px solid #d9d0bf",
-    padding: "20px 22px",
-  },
-  proposedParagraph: {
-    fontFamily: "var(--font-book)",
-    fontSize: 17,
-    lineHeight: 1.6,
-    margin: "0 0 1em",
-  },
-  actions: { display: "flex", gap: 10, flexWrap: "wrap" },
-  accept: {
-    fontFamily: "var(--font-chrome)",
-    fontSize: 15,
-    fontWeight: 500,
-    background: "#7a2e2a",
-    color: "#f4eee2",
-    border: "none",
-    borderRadius: 4,
-    padding: "12px 20px",
-    cursor: "pointer",
-  },
-  decline: {
-    fontFamily: "var(--font-chrome)",
-    fontSize: 15,
-    background: "none",
-    color: "#1c1a17",
-    border: "1px solid #d9d0bf",
-    borderRadius: 4,
-    padding: "12px 20px",
-    cursor: "pointer",
-  },
-  settled: {
-    fontFamily: "var(--font-chrome)",
-    fontSize: 13,
-    color: "#7a746a",
-    marginTop: 28,
-    borderTop: "1px solid #d9d0bf",
-    paddingTop: 16,
-  },
-  problem: {
-    fontFamily: "var(--font-chrome)",
-    fontSize: 14,
-    color: "#7a2e2a",
-    margin: 0,
-  },
-};

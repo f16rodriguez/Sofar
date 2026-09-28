@@ -1,15 +1,13 @@
 "use client";
 
-// Adding Sofar to a home screen (SPEC §6, M5).
+// Adding Sofar to a home screen, offered at the one moment it makes sense:
+// just after someone has answered, when "tomorrow's question" is a thing they
+// have a reason to want one tap away. It used to be a strip on every screen
+// from the first visit, asking for a place on the home screen before the app
+// had given anyone a reason to keep it.
 //
-// A daily question that lives behind a browser, three taps deep in a tab
-// someone closed last week, does not get answered. Installed, it is one tap
-// from the lock screen — and on iOS, being installed is also the only way a
-// push notification can ever arrive.
-//
-// Shown once, quietly, and only where it can work: never when already
-// installed, never after it has been dismissed. Chrome hands us a real
-// prompt; Safari has no such API, so it gets the two steps instead.
+// Never when already installed, never after it has been dismissed. Chrome
+// hands us a real prompt; Safari has no such API, so it gets the two steps.
 
 import { useEffect, useState } from "react";
 
@@ -20,13 +18,12 @@ interface InstallEvent extends Event {
 
 const DISMISSED = "sofar.install.dismissed";
 
-export default function InstallPrompt() {
+export default function InstallCard() {
   const [event, setEvent] = useState<InstallEvent | null>(null);
-  const [iosHint, setIosHint] = useState(false);
-  const [gone, setGone] = useState(true);
+  const [ios, setIos] = useState(false);
+  const [show, setShow] = useState(false);
 
   useEffect(() => {
-    // Already installed, or asked before.
     const standalone =
       window.matchMedia?.("(display-mode: standalone)").matches ||
       (window.navigator as { standalone?: boolean }).standalone === true;
@@ -34,36 +31,33 @@ export default function InstallPrompt() {
     try {
       dismissed = localStorage.getItem(DISMISSED) === "1";
     } catch {
-      // Private browsing can refuse storage; then it simply shows again.
+      // Private browsing can refuse storage; then it offers again next time.
     }
     if (standalone || dismissed) return;
 
     const onPrompt = (e: Event) => {
       e.preventDefault();
       setEvent(e as InstallEvent);
-      setGone(false);
+      setShow(true);
     };
     window.addEventListener("beforeinstallprompt", onPrompt);
 
-    // iOS never fires that event, and it is the platform that most needs
-    // installing, so it is detected rather than waited for.
     const ua = navigator.userAgent;
     const isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
     const isSafari = /Safari/.test(ua) && !/CriOS|FxiOS|EdgiOS/.test(ua);
     if (isIOS && isSafari) {
-      setIosHint(true);
-      setGone(false);
+      setIos(true);
+      setShow(true);
     }
-
     return () => window.removeEventListener("beforeinstallprompt", onPrompt);
   }, []);
 
   function dismiss() {
-    setGone(true);
+    setShow(false);
     try {
       localStorage.setItem(DISMISSED, "1");
     } catch {
-      // Nothing to do; it will offer again next time.
+      // Nothing to do.
     }
   }
 
@@ -74,22 +68,21 @@ export default function InstallPrompt() {
     dismiss();
   }
 
-  if (gone) return null;
-
+  if (!show) return null;
   return (
-    <aside className="install">
+    <aside className="install unfold">
       <p className="install-text">
-        {iosHint ? (
+        {ios ? (
           <>
-            Keep Sofar on your home screen: tap <strong>Share</strong>, then{" "}
+            So tomorrow&rsquo;s is one tap away: tap <strong>Share</strong>, then{" "}
             <strong>Add to Home Screen</strong>.
           </>
         ) : (
-          <>One tap from your home screen, instead of a tab you have to find.</>
+          <>Keep Sofar on your home screen, so tomorrow&rsquo;s question is one tap away.</>
         )}
       </p>
       <span className="install-actions">
-        {!iosHint && (
+        {!ios && (
           <button type="button" className="button-quiet" onClick={() => void install()}>
             Add to home screen
           </button>

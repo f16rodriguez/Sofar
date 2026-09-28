@@ -23,7 +23,9 @@
     "cleanup:threads": "tsx scripts/cleanup-threads.ts",
     "test:session": "tsx scripts/test-session.ts",
     "make-icons": "tsx scripts/make-icons.ts",
-    "test:minutes": "tsx scripts/test-minutes.ts"
+    "test:minutes": "tsx scripts/test-minutes.ts",
+    "test:render": "tsx scripts/test-render.ts",
+    "test:daily": "tsx scripts/test-daily-rules.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.123.0",

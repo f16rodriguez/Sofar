@@ -14,7 +14,7 @@ import { tooMany } from "@/lib/ratelimit-response";
 
 export const runtime = "nodejs";
 
-export async function POST() {
+export async function POST(request: Request) {
   try {
     const user = await requireUser();
     await ensureProfile(user);
@@ -43,7 +43,8 @@ export async function POST() {
 
     // Picks up an interview already under way rather than asking everything
     // over again (lib/interview/session.ts).
-    const { sessionId, state, resumed } = await resumeOrStart(db, user.id);
+    const fresh = new URL(request.url).searchParams.get("fresh") === "1";
+    const { sessionId, state, resumed } = await resumeOrStart(db, user.id, "onboarding", new Date(), { fresh });
     const turn = await nextTurn(db, { state, seeds });
 
     return NextResponse.json({

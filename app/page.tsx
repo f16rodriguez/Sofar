@@ -5,6 +5,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { currentUser } from "@/lib/auth";
+import { serviceClient } from "@/lib/supabase";
+import { journey } from "@/lib/journey";
 import "./landing.css";
 
 export const metadata = {
@@ -13,7 +15,8 @@ export const metadata = {
 };
 
 export default async function Home() {
-  if (await currentUser()) redirect("/interview");
+  const user = await currentUser();
+  if (user) redirect((await journey(serviceClient(), user.id)).home);
 
   return (
     <div className="landing">

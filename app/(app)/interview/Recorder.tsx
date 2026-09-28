@@ -26,11 +26,11 @@ export default function Recorder() {
   const recorder = useRef<MediaRecorder | null>(null);
   const chunks = useRef<Blob[]>([]);
 
-  const begin = useCallback(async () => {
+  const begin = useCallback(async (fresh = false) => {
     setPhase("sending");
     setProblem(null);
     try {
-      const res = await fetch("/api/interview/start", {
+      const res = await fetch(`/api/interview/start${fresh ? "?fresh=1" : ""}`, {
         method: "POST",
       });
       if (!res.ok) throw new Error("could not start");
@@ -132,17 +132,24 @@ export default function Recorder() {
     return () => clearInterval(id);
   }, [phase]);
 
-  const minutes = Math.floor(secondsLeft / 60);
-  const seconds = String(secondsLeft % 60).padStart(2, "0");
+  // Minutes, in words. "18:00" read as six in the evening, and a resumed
+  // session carries fractional seconds that rendered as 17:18.4200000000001.
+  const minutesLeft = Math.max(0, Math.round(secondsLeft / 60));
+  const clock =
+    minutesLeft >= 2 ? `About ${minutesLeft} minutes left` : minutesLeft === 1 ? "About a minute left" : "Nearly done";
 
   if (phase === "idle") {
     return (
       <div style={S.wrap} className="rise">
         <p style={S.lede}>
-          Twenty minutes of questions. Answer out loud, the way you would to a
-          person across a table. You can skip anything — just say skip.
+          About twenty minutes of questions. Answer out loud, the way you would
+          to a person across a table. Say &ldquo;skip&rdquo; to anything.
         </p>
-        <button style={S.primary} onClick={begin}>
+        <p style={S.aside}>
+          Stop whenever you like. Your answers are kept, and it picks up where
+          you left off.
+        </p>
+        <button style={S.primary} onClick={() => void begin()}>
           Start the interview
         </button>
       </div>
@@ -164,10 +171,25 @@ export default function Recorder() {
   return (
     <div style={S.wrap} className="rise" key={question}>
       <div style={S.clock}>
-        {minutes}:{seconds}
+        {clock}
       </div>
 
-      {resumed && <p style={S.resumed}>Picking up where you left off.</p>}
+      {resumed && (
+        <p style={S.resumed}>
+          Picking up where you left off.{" "}
+          <button
+            type="button"
+            style={S.inlineLink}
+            onClick={() => {
+              if (window.confirm("Start the interview over from the first question? Your earlier answers stay in the record.")) {
+                void begin(true);
+              }
+            }}
+          >
+            Start over instead
+          </button>
+        </p>
+      )}
       {announceLast && <p style={S.last}>This is the last question.</p>}
       {phase === "recording" && (
         <p style={S.last} aria-live="polite">
@@ -204,6 +226,11 @@ export default function Recorder() {
       </details>
 
       {problem && <p style={S.problem}>{problem}</p>}
+      {phase !== "recording" && phase !== "sending" && (
+        <a href="/today" style={S.stopLink}>
+          Stop for now — your answers are kept
+        </a>
+      )}
       {heard && (
         <p style={S.heard}>
           <span style={S.heardLabel}>Heard</span> {heard}
@@ -226,15 +253,37 @@ const S: Record<string, React.CSSProperties> = {
   clock: {
     fontFamily: "var(--font-chrome)",
     fontSize: "13px",
-    letterSpacing: ".08em",
     color: "#7a746a",
-    fontVariantNumeric: "tabular-nums",
   },
   resumed: {
     fontFamily: "var(--font-chrome)",
     fontSize: "13px",
     color: "#7a746a",
     margin: 0,
+  },
+  inlineLink: {
+    fontFamily: "var(--font-chrome)",
+    fontSize: "13px",
+    color: "#1c1a17",
+    background: "none",
+    border: "none",
+    padding: 0,
+    textDecoration: "underline",
+    textUnderlineOffset: "3px",
+    cursor: "pointer",
+  },
+  aside: {
+    fontFamily: "var(--font-chrome)",
+    fontSize: "14px",
+    lineHeight: 1.55,
+    color: "#7a746a",
+    margin: 0,
+  },
+  stopLink: {
+    fontFamily: "var(--font-chrome)",
+    fontSize: "13px",
+    color: "#7a746a",
+    alignSelf: "flex-start",
   },
   last: {
     fontFamily: "var(--font-chrome)",

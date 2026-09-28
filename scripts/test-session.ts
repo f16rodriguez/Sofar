@@ -37,13 +37,23 @@ async function main() {
       .from("sessions").select("*", { count: "exact", head: true }).eq("user_id", userId);
     check(sessionCount === 1, "and no second session is minted", `${sessionCount}`);
 
-    // A day later: a clean run, and the old one is closed rather than left open.
-    const tomorrow = new Date(Date.now() + 13 * 3_600_000);
-    const next = await resumeOrStart(db, userId, "onboarding", tomorrow);
-    check(!next.resumed && next.sessionId !== first.sessionId, "a day later starts fresh");
+    // The first interview waits: ten minutes tonight and ten on Thursday is
+    // one finished interview, not two false starts.
+    const days = new Date(Date.now() + 3 * 86_400_000);
+    const later = await resumeOrStart(db, userId, "onboarding", days);
+    check(later.resumed && later.sessionId === first.sessionId, "an unfinished first interview is still there days later");
+
+    // Starting over is the person's choice, and the old session is closed, not orphaned.
+    const next = await resumeOrStart(db, userId, "onboarding", days, { fresh: true });
+    check(!next.resumed && next.sessionId !== first.sessionId, "start over begins a new one");
     check(next.state.seconds_left === initialState().seconds_left, "with the whole clock again");
     const { data: old } = await db.from("sessions").select("status").eq("id", first.sessionId).single();
-    check(old?.status !== "active", "and yesterday's session is closed, not orphaned", String(old?.status));
+    check(old?.status !== "active", "and the one left behind is closed", String(old?.status));
+
+    // Other kinds still go stale overnight.
+    const daily = await resumeOrStart(db, userId, "daily");
+    const dailyTomorrow = await resumeOrStart(db, userId, "daily", new Date(Date.now() + 13 * 3_600_000));
+    check(!dailyTomorrow.resumed && dailyTomorrow.sessionId !== daily.sessionId, "a daily session does not carry over to the next day");
 
     // A session with no time left is finished, whatever its status says.
     await db.from("sessions").update({ state: { ...next.state, seconds_left: 5 } }).eq("id", next.sessionId);
@@ -51,8 +61,9 @@ async function main() {
     check(!third.resumed && third.sessionId !== next.sessionId, "a spent clock does not resume");
 
     const { count: total } = await db
-      .from("sessions").select("*", { count: "exact", head: true }).eq("user_id", userId).eq("status", "active");
-    check(total === 1, "exactly one interview is ever open", `${total} active`);
+      .from("sessions").select("*", { count: "exact", head: true })
+      .eq("user_id", userId).eq("status", "active").eq("kind", "onboarding");
+    check(total === 1, "exactly one first interview is ever open", `${total} active`);
   } finally {
     await db.auth.admin.deleteUser(userId);
     console.log("\ncleanup: fixture user deleted (cascade)");

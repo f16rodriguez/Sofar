@@ -21,7 +21,7 @@ All prompts live here as versioned markdown, loaded at runtime via
 | `interviewer.md` | §5.1 interviewer | M2 |
 | `revision-proposer.md` | §5.5 | M3 |
 | `sofar.md` | §5.7 | M3 |
-| `daily-question.md` | §5.6 | M4 (blocked on founder question bank) |
+| `daily-question.v2.md` | §5.6 — v2 rests subjects asked in the last two weeks, one ask per question, names the day. v1 (`daily-question.md`) circled ten subjects in three weeks; kept, unused | M4 (founder question bank still to come) |
 | `spine.md` | §5.8 | post-M3 (triggered at chapter 10) |
 
 Versioning: edit in place for wording tweaks; for behavior changes copy to

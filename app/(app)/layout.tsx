@@ -5,7 +5,6 @@
 import { redirect } from "next/navigation";
 import { currentUser } from "@/lib/auth";
 import Nav from "./Nav";
-import InstallPrompt from "./InstallPrompt";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await currentUser();
@@ -13,8 +12,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div className="app">
       <Nav />
-      {children}
-      <InstallPrompt />
+      <div className="app-body">{children}</div>
     </div>
   );
 }

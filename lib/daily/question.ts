@@ -11,6 +11,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { complete, loadPrompt } from "../llm";
 import { log } from "../log";
 import { localDate, safeZone } from "./time";
+import { placeKey, repeats } from "./topics";
+import { journey } from "../journey";
 
 export const DailyQuestionSchema = z.object({
   question: z.string(),
@@ -22,6 +24,10 @@ export const DailyQuestionSchema = z.object({
 const FORBIDDEN = /\b(book|books|chapter|chapters|page|pages|story|stories|interview|interviews|manuscript|writing|written|app)\b/i;
 const MAX_WORDS = 25;
 const NO_REPEAT_DAYS = 60;
+/** A thread, a place, or a subject asked about this recently is rested. */
+const REST_DAYS = 14;
+/** This many daily questions in a row with no answer, and the person has gone quiet. */
+export const QUIET_AFTER = 3;
 
 export interface DailyQuestionResult {
   created: boolean;
@@ -32,8 +38,12 @@ export interface DailyQuestionResult {
 
 const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
 
-/** Why a question fails the hard rules, or null when it passes. */
-export function ruleFailure(question: string, recent: string[]): string | null {
+/**
+ * Why a question fails the hard rules, or null when it passes. `recent` is
+ * everything asked in sixty days (no exact repeat); `resting` is what was
+ * asked in the last two weeks (no return to the same subject).
+ */
+export function ruleFailure(question: string, recent: string[], resting: string[] = []): string | null {
   const q = question.trim();
   if (!q.endsWith("?")) return "must be one question ending in a question mark";
   if ((q.match(/\?/g) ?? []).length > 1) return "one question, not two";
@@ -42,6 +52,8 @@ export function ruleFailure(question: string, recent: string[]): string | null {
   if (hit) return `must not mention "${hit[0]}"`;
   const n = normalize(q);
   if (recent.some((r) => normalize(r) === n)) return "repeats a recent question";
+  const circled = repeats(q, resting);
+  if (circled) return `too close to a question from the last two weeks ("${circled}") — pick a different subject`;
   return null;
 }
 
@@ -66,7 +78,7 @@ export async function generateDailyQuestion(
     db.from("memory_places").select("label").eq("user_id", opts.userId),
     db
       .from("questions")
-      .select("text, created_at")
+      .select("text, created_at, thread_id")
       .eq("user_id", opts.userId)
       .gte("created_at", since)
       .order("created_at", { ascending: false })
@@ -90,7 +102,17 @@ export async function generateDailyQuestion(
   const todays = (existing ?? []).find((q) => localDate(new Date(q.created_at as string), zone) === today);
   if (todays) return { created: false, questionId: todays.id as string, question: todays.text as string, reason: "already asked today" };
 
-  const threads = (threadsQ.data ?? []).filter((t) => !/^(Missing|Ask):/.test(String(t.description ?? "")));
+  // Rest what was asked about in the last two weeks, so the model is not
+  // offered the same ten subjects every morning (lib/daily/topics.ts).
+  const restFrom = now.getTime() - REST_DAYS * 86_400_000;
+  const lately = (recentQ.data ?? []).filter((q) => new Date(q.created_at as string).getTime() >= restFrom);
+  const resting = lately.map((q) => String(q.text));
+  const restingThreads = new Set(lately.map((q) => q.thread_id as string | null).filter(Boolean));
+  const restingText = resting.map(normalize).join(" | ");
+
+  const threads = (threadsQ.data ?? []).filter(
+    (t) => !/^(Missing|Ask):/.test(String(t.description ?? "")) && !restingThreads.has(t.id as string),
+  );
   const stances = stancesQ.data ?? [];
   const byId = new Map(stances.map((s) => [s.id as string, s]));
   const contradictions = stances
@@ -100,7 +122,10 @@ export async function generateDailyQuestion(
   const foundations = profileQ.data;
   const gaps: string[] = [];
   const gap = (label: string, value: string | null | undefined) => {
-    if (value && !storied.has(normalize(value))) gaps.push(`- ${label}: ${value}`);
+    if (!value || storied.has(normalize(value))) return;
+    const key = placeKey(value);
+    if (key && restingText.includes(key)) return;
+    gaps.push(`- ${label}: ${value}`);
   };
   gap("born in", foundations?.birthplace);
   gap("lives in", foundations?.current_city);
@@ -123,12 +148,12 @@ export async function generateDailyQuestion(
   for (let attempt = 1; attempt <= 2; attempt++) {
     const out = await complete<z.infer<typeof DailyQuestionSchema>>({
       task: "daily_question",
-      system: loadPrompt("daily-question"),
+      system: loadPrompt("daily-question.v2"),
       prompt: feedback ? `${prompt}\n\nREJECTED: ${feedback}. Ask a different one.` : prompt,
       schema: DailyQuestionSchema,
       maxTokens: 600,
     });
-    const failure = ruleFailure(out.question, recent);
+    const failure = ruleFailure(out.question, recent, resting);
     if (failure) {
       feedback = failure;
       continue;
@@ -155,6 +180,42 @@ export async function generateDailyQuestion(
   }
   log.info("daily.question.none", { userId: opts.userId, reason: feedback });
   return { created: false, reason: `no question passed the rules today (${feedback})` };
+}
+
+/**
+ * Whether to write this person a question this morning.
+ *
+ * Not before the first interview is over: Today shows the interview until
+ * then, so the question would go unseen. And not once they have gone quiet —
+ * the last three asked, none answered. Over three weeks the founder was asked
+ * twenty-four questions nobody read. Asking into silence pays for a model
+ * call and an email a day and teaches the inbox to file us as noise. Coming
+ * back to Today and asking for one (AskNow) starts them again: the next
+ * answer breaks the run.
+ */
+export async function shouldAsk(db: SupabaseClient, userId: string): Promise<{ ask: boolean; reason?: string }> {
+  const where = await journey(db, userId);
+  if (where.stage !== "book") return { ask: false, reason: `still in ${where.stage}` };
+  if (await isQuiet(db, userId)) return { ask: false, reason: "quiet" };
+  return { ask: true };
+}
+
+/** The last QUIET_AFTER daily questions went unanswered. */
+export async function isQuiet(db: SupabaseClient, userId: string): Promise<boolean> {
+  const { data: asked, error } = await db
+    .from("questions")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("block", "daily")
+    .order("created_at", { ascending: false })
+    .limit(QUIET_AFTER);
+  if (error) throw new Error(`quiet check failed: ${error.code ?? error.message}`);
+  if ((asked ?? []).length < QUIET_AFTER) return false;
+  const { count } = await db
+    .from("answers")
+    .select("id", { count: "exact", head: true })
+    .in("question_id", (asked ?? []).map((q) => q.id as string));
+  return (count ?? 0) === 0;
 }
 
 /** The daily question on the person's local date, if one exists, and whether it has an answer. */

@@ -7,6 +7,7 @@ import { headers } from "next/headers";
 import { log } from "@/lib/log";
 import { siteOrigin } from "@/lib/site";
 import { serviceClient } from "@/lib/supabase";
+import { journey } from "@/lib/journey";
 import { allowSafe, LIMITS } from "@/lib/ratelimit";
 
 export const metadata = { title: "Sofar — Sign in" };
@@ -44,7 +45,8 @@ export default async function SignIn({
 }: {
   searchParams: Promise<{ sent?: string; problem?: string; deleted?: string }>;
 }) {
-  if (await currentUser()) redirect("/onboarding");
+  const signedIn = await currentUser();
+  if (signedIn) redirect((await journey(serviceClient(), signedIn.id)).home);
   const { sent, problem, deleted } = await searchParams;
 
   return (

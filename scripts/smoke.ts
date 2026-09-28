@@ -93,8 +93,6 @@ async function main() {
       ["/book", /Smoke/],
       ["/manuscript", /The Smoke Test/],
       ["/settings", /Settings/],
-      ["/interview", /interview|Answer|Start/i],
-      ["/onboarding", /Before the questions/],
     ];
     for (const [path, expect] of screens) {
       const res = await fetch(`${BASE}${path}`, { headers: { cookie } });
@@ -105,6 +103,14 @@ async function main() {
         ok,
         ok ? `${html.length}B` : `${res.status}${CRASHED.test(html) ? " CRASHED" : ""}${expect.test(html) ? "" : " missing expected content"}`,
       );
+    }
+
+    // Someone with a book is past the first interview: both of its screens
+    // send them to Today rather than offering to start it again.
+    for (const path of ["/interview", "/onboarding"]) {
+      const res = await fetch(`${BASE}${path}`, { headers: { cookie }, redirect: "manual" });
+      const to = res.headers.get("location") ?? "";
+      check(`signed in ${path} with a book → Today`, res.status === 307 && to.includes("/today"), `${res.status} ${to}`);
     }
 
     // Public pages carry no session at all.

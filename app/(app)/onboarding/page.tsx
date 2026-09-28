@@ -8,6 +8,7 @@
 import { redirect } from "next/navigation";
 import { currentUser } from "@/lib/auth";
 import { serviceClient } from "@/lib/supabase";
+import { journey } from "@/lib/journey";
 import FoundationsForm, { type FoundationsData } from "../FoundationsForm";
 
 export const metadata = { title: "Sofar — Foundations" };
@@ -17,13 +18,17 @@ export default async function Onboarding() {
   if (!user) redirect("/signin");
 
   const db = serviceClient();
+  // Past the first interview, these facts are edited in Settings; this page
+  // ends in "Start the interview", which is no longer the next step.
+  if ((await journey(db, user.id)).stage === "book") redirect("/today");
   const { data } = await db.from("users").select("*").eq("id", user.id).maybeSingle();
 
   return (
     <main className="page-narrow rise">
       <h1 className="page-title">Before the questions</h1>
       <p className="lede">
-        Eight things the book needs to exist. A minute, no stories yet — those come next.
+        The facts the book stands on — who you are, where you&rsquo;ve lived, who&rsquo;s around. Two
+        minutes, no stories yet; those come next.
       </p>
       <FoundationsForm
         data={(data as FoundationsData | null) ?? null}
