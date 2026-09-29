@@ -85,8 +85,9 @@ export default async function SignIn({
           )}
           {problem === "link" && (
             <p style={problemStyle}>
-              That link has been used already, or it expired. Send yourself a fresh one — links
-              last an hour, and each one works once.
+              That link didn&rsquo;t work here. Links work once, for an hour, and in the browser
+              you asked from — a mail app that opens its own browser breaks them. Send a fresh one,
+              then open it in the same browser.
             </p>
           )}
           {problem === "slow" && (
